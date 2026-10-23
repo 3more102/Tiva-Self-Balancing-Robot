@@ -125,7 +125,7 @@ See [firmware setup and limitations](firmware/tiva/README.md) and [test plan](do
 
 ### 3. Study the MATLAB model (not experimental results)
 
-Run `matlab/model_and_design.m` with MATLAB Control System Toolbox. It constructs a simplified **pitch-only inverted-pendulum** state-space model, applies 5 ms zero-order-hold discretization and demonstrates **LQR**. The model's masses, inertia, friction and torque gain are **placeholder values**. The current MCU code uses **PD/PID, not LQR**.
+Run `matlab/model_and_design.m` with MATLAB Control System Toolbox. For a separate **theoretical virtual PD vs open-loop** comparison, run `matlab/pd_theoretical_comparison.m` (base MATLAB; also not a hardware experiment). It constructs a simplified **pitch-only inverted-pendulum** state-space model, applies 5 ms zero-order-hold discretization and demonstrates **LQR**. The model's masses, inertia, friction and torque gain are **placeholder values**. The current MCU code uses **PD/PID, not LQR**.
 
 Only use `matlab/plot_telemetry.m` with an actual measured log carrying `data_origin=MEASURED_TIVA_ROBOT`. It intentionally refuses theoretical traces. **No real telemetry is provided yet.**
 
@@ -157,6 +157,7 @@ Tiva-Self-Balancing-Robot/
 │   └── README.md
 ├── matlab/
 │   ├── model_and_design.m                # illustrative continuous/discrete model
+│   ├── pd_theoretical_comparison.m       # virtual PD/open-loop MATLAB study
 │   └── plot_telemetry.m                  # plot *measured* CSV once available
 ├── hardware/
 │   ├── wiring.md                         # connection assumptions / precautions
