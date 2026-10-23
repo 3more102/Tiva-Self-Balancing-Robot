@@ -1,6 +1,8 @@
 %% NANENG 512 — experimental data plotter (logger NOT yet implemented)
-% Expected input: measured CSV with header
-% time_s,angle_deg,gyro_x_dps,command
+% Expected input: ACTUALLY MEASURED CSV with header
+% time_s,angle_deg,gyro_x_dps,command,data_origin
+% data_origin must equal MEASURED_TIVA_ROBOT in every row.
+% This prevents model-only traces being mislabeled as measured results.
 % Before real testing, add verified nonblocking UART logging to firmware.
 clear; close all; clc;
 file = 'measured_telemetry.csv';
@@ -9,9 +11,11 @@ if ~isfile(file)
            'Do not present example/model traces as measured robot data.']);
 end
 T = readtable(file);
-required = {'time_s','angle_deg','gyro_x_dps','command'};
+required = {'time_s','angle_deg','gyro_x_dps','command','data_origin'};
 assert(all(ismember(required, T.Properties.VariableNames)), ...
-    'Required CSV columns: time_s, angle_deg, gyro_x_dps, command');
+    'Required: time_s, angle_deg, gyro_x_dps, command, data_origin');
+assert(all(string(T.data_origin) == "MEASURED_TIVA_ROBOT"), ...
+    'Data provenance mismatch: only real Tiva measurements may use this plotting script.');
 assert(all(diff(T.time_s) > 0), 'Timestamps must be strictly increasing.');
 assert(all(isfinite(T.angle_deg)) && all(isfinite(T.command)), ...
     'Telemetry must have finite samples.');
