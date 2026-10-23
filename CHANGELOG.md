@@ -8,6 +8,7 @@
 - Add deterministic, standard-library-only RK4 simulation with idealized pitch dynamics, virtual PD controller, bounded command, labeled theoretical CSV/JSON results and Python regression tests.
 - Reject theoretical CSV data in MATLAB `plot_telemetry.m` to prevent simulated values being called measured hardware results.
 - Add boot/timer Mermaid sequence diagrams, experimental protocol and expanded setup/README documentation.
+- Add independent base-MATLAB comparison of virtual PD and uncontrolled pitch-only dynamics, explicitly labeled theoretical.
 - No target build, physical robot test or model identification is claimed.
 
 
