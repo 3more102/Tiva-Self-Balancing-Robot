@@ -19,7 +19,7 @@ Identify final board revision, MCU clock, sensor configuration, bus speed, motor
 
 ## 3. Digital controller synthesis
 
-Document continuous model, identified parameters, discrete sample time `Ts`, `Ad/Bd` derivation, stability margins, controller equations, design criteria and MATLAB charts. If using PID, explain the actual deployed gains, units and the target error direction. If using LQR, implement LQR consistently on MCU and state how the needed states are estimated. Do not present the existing MATLAB LQR **as the firmware PID**.
+Document continuous model, identified parameters, discrete sample time `Ts`, `Ad/Bd` derivation, stability margins, controller equations, design criteria and MATLAB charts. If using PID, explain the actual deployed gains, units and the target error direction. The current [MATLAB theoretical PD script](../../matlab/pd_theoretical_comparison.m) is an idealized *preliminary model comparison*, not finalized hardware-based digital controller design. If using LQR, implement LQR consistently on MCU and state how the needed states are estimated. Do not present the existing MATLAB LQR **as the firmware PID**.
 
 ## 4. Embedded implementation and scheduling
 
