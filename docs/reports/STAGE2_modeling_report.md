@@ -64,14 +64,14 @@ Collect `dataset_train.csv` and `dataset_validation.csv` with time, angle, angul
 
 ## 5. MATLAB analysis procedure
 
-1. Load [`model_and_design.m`](../../matlab/model_and_design.m) and distinguish illustrative values from identified values.
+1. Load [`model_and_design.m`](../../matlab/model_and_design.m) and distinguish illustrative values from identified values. Run the *independent, theoretical-only* MATLAB virtual PD/open-loop comparison [`pd_theoretical_comparison.m`](../../matlab/pd_theoretical_comparison.m) if useful as a methodological figure, marking it as illustrative rather than experimental.
 2. Build continuous state matrices and `c2d` with **actual measured** sample interval.
 3. Check controllability and locations of open/closed-loop poles.
 4. Design a controller using discrete feedback gains; simulate small perturbations and constraint saturation.
 5. Cross-check simulated and measured pitch using [`plot_telemetry.m`](../../matlab/plot_telemetry.m) when timestamped logs exist.
 6. Record sampling jitter, delays, gain robustness and measured amplifier/motor saturation.
 
-The current LQR script is *not* the firmware controller; comparing LQR vs PD/PID without applying identical plant/sampling assumptions would be invalid.
+The LQR script is *not* the firmware controller. The new MATLAB PD comparison and separate Python simulator use the same simplified pitch plant and explicitly different ideal virtual PD gains; neither reproduces the actual Tiva motor/PID dynamics. Comparing LQR vs PD/PID without applying identical plant/sampling assumptions would be invalid.
 
 ## 6. Results tables to fill after hardware measurement
 

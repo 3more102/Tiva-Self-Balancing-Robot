@@ -47,7 +47,7 @@ flowchart TD
     STOP --> NEXT
 ```
 
-Note: at present `dt` is a **nominal constant** 5 ms, not a measured per-cycle timestamp; real-time jitter and missed deadlines have **not** been characterized. Firmware motor output remains compile-time disabled. This diagram is a conceptual control flow, not proof of safe real-time timing.
+The firmware now computes `dt` using a Timer1A downcounter; it detects some early/late control intervals against provisional 2.5–8 ms bounds. However, actual real-time jitter, missed deadlines and worst-case execution time have **not** been measured on the board, and software cannot replace a hardware watchdog. Firmware motor output remains compile-time disabled. This diagram is a conceptual control flow, not proof of safe real-time timing.
 
 ## 3. Power and interconnection diagram
 

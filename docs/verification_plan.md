@@ -7,7 +7,7 @@
 | Level | Objective | Evidence available |
 |---|---|---|
 | L0 — source and mathematical integrity | Inspect assumptions, API use, units, docs and continuous/discrete equations | Docs and reviews; MATLAB model illustrative |
-| L1 — portable host tests | Exercise estimator/PID/arming paths, invalid samples, saturation | GitHub Actions GCC + UBSan host test suite |
+| L1 — portable host tests | Exercise estimator/PID/arming, gyro calibration, timer wrap, invalid samples and saturation | GitHub Actions GCC + UBSan; separate theoretical simulator tests |
 | L2 — target build / emulator | Compile complete TM4C123 TivaWare image, verify startup and link | **Missing** |
 | L3 — instrumented benchtop | Verify power/current/logic/timing without balancing | **Missing** |
 | L4 — restrained closed-loop | Controlled low-energy motor/polarity and pitch tests | **Missing** |
@@ -23,6 +23,9 @@
 | C-04 | PID saturation and anti-windup for repeated extreme inputs | Output bounded within ±0.7, integral bounded | Automated |
 | C-05 | Safety startup while held | Must stay DISARMED without prior release | Automated |
 | C-06 | Release, 40 upright held samples, tilt trip, release/rearm | Transitions exactly as specified | Automated |
+| C-07 | Gyro bias calibration: switch, motion, 200 valid samples and noise bounds | No completion for unstable/noisy samples | Automated host C tests; hardware pending |
+| C-08 | Timer1 unsigned downcounter wrap, 5 ms acceptance, timing outliers | Accept good clock ticks, reject abnormal interval | Automated host C tests; target timing unverified |
+| S-01 | Theoretical pitch-only PD / open-loop regression | Internally consistent numerical results | Automated Python, **not measured robot data** |
 | D-01 | Check relative Markdown links and code fences | No broken links, balanced fences | Automated |
 | T-01 | Compile all embedded source with CCS for TM4C123 | No target compiler/link errors | **Not tested** |
 | T-02 | Inspect GPIO levels / power without motors connected | PA5 LOW, safe pin voltages | **Not tested** |
@@ -52,7 +55,7 @@
 - [ ] Current limiting, supply brownout and stall current verification
 - [ ] Reproducible CCS build (compiler/TivaWare version, startup and linker files)
 - [ ] Real waveform captures for MCU GPIO, I2C, PWM and STBY
-- [ ] Raw timing, safety and sensor captures
+- [ ] Raw timing, safety and sensor captures (software calculations are not measured timing profiles)
 - [ ] Recorded measured plant parameters
 - [ ] Control gain derivation and validation on real robot
 - [ ] MATLAB analysis with meaningful comparison plots

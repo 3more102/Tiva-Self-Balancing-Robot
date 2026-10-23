@@ -49,7 +49,7 @@ theta_hat[k] = alpha * (theta_hat[k-1] + Ts*gx_corrected)
              + (1-alpha) * theta_acc_deg
 ```
 
-This complementary estimator trades gyro integration drift against accelerometer motion artifacts; it is **not** a Kalman filter. At `T_s=0.005` and `tau=0.5`, `alpha=0.5/0.505=0.990099...`. The first valid reading initializes angle from accelerometer. A yaw/roll-excited vehicle requires a more complete attitude estimator.
+This complementary estimator trades gyro integration drift against accelerometer motion artifacts; it is **not** a Kalman filter. At `T_s=0.005` and `tau=0.5`, `alpha=0.5/0.505=0.990099...`. The first valid reading initializes angle from accelerometer. Startup X-gyro bias now requires 200 consecutive, stationary upright samples with button released, online mean/variance checks and a timeout (see [calibration and timing](calibration_timing.md)); those checks remain host-validated only. A yaw/roll-excited vehicle requires a more complete attitude estimator.
 
 Current controller input validation rejects non-finite values, invalid sampling intervals (above 20 ms or non-positive) and degenerate/excessive YZ acceleration projection, and commands safe shutdown via the application when the estimator returns `NAN`. This is **software-level behavior**; real sensor self-tests remain to be performed.
 
@@ -69,7 +69,7 @@ The portable PID accepts the proposed integral if unsaturated or if the error wo
 
 ## E. Control limits and assumptions
 
-- Nominal control period is 5 ms and nominal PWM frequency is 20 kHz. Target MCU scheduling and I2C duration are **not** measured.
+- Nominal control period is 5 ms and nominal PWM frequency is 20 kHz. Source now passes a Timer1-measured dt (and faults outside provisional 2.5–8 ms bounds), but actual MCU scheduling, jitter and I2C duration remain **unmeasured**.
 - The current polling design assumes each I2C/algorithm update completes before the next control tick. Add measured execution time, overrun counters and a watchdog before qualification.
 - MPU acceleration includes inertial acceleration, not gravity only. Fast acceleration distorts `atan2(ay,az)`; validation must include motion data.
 - Motor voltage and effective torque vary with battery voltage, resistance, driver and mechanical friction. Saturation, dead-zone and backlash are currently absent from MATLAB model.

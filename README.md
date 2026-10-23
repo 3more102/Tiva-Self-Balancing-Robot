@@ -8,7 +8,7 @@
 ![Analysis](https://img.shields.io/badge/model-MATLAB-purple)
 
 > **A reproducible engineering starting point, not a finished self-balancing robot.**  
-> This repository contains Tiva C firmware *source*, host-tested control algorithms, MATLAB **illustrative** control analysis, editable Mermaid block diagrams and detailed academic reports. The embedded firmware has **not** been built on or tested with the physical Tiva board; no successful balancing experiment is claimed.
+> This repository contains Tiva C firmware *source*, host-tested control algorithms, stationary gyro-calibration and clock diagnostics, MATLAB **illustrative** analysis, a separate theoretical pitch-only simulator, editable Mermaid engineering diagrams and academic reports. The embedded firmware has **not** been built on or tested with the physical Tiva board; no successful balancing experiment is claimed.
 
 **Assignment exception:** The provided NANENG 512 brief specifically requests **Arduino** for Stage 3. We intend to use **TI Tiva C** instead. Written instructor approval is required before submission.
 
@@ -64,9 +64,10 @@ This is an **illustrative block diagram, not the electrical schematic** required
 ## Firmware features and **safety boundaries**
 
 - Complementary pitch estimator: `atan2(ay,az)` plus bias-corrected gyro integration (angular units: degrees and deg/s).
-- Nominal loop target: **200 Hz (5 ms)**; PWM: **20 kHz**. Real timing/jitter are not measured.
+- Nominal loop target: **200 Hz (5 ms)**; PWM: **20 kHz**. Timer1A downcounter now supplies elapsed per-cycle `dt` and software rejects cycles outside the provisional 2.5–8 ms range. **Real timing/jitter are not measured on hardware**.
 - PD/PID controller with conditional anti-windup and normalized output clamp `|u| ≤ 0.7`; gains are **not tuned for a physical robot**.
-- Guard conditions on invalid sensor readings and invalid estimator/control intervals.
+- **Stationary gyro calibration:** 200 consecutive upright/released-switch samples, ±6° pitch, magnitude checks, 0.75 deg/s provisional gyro noise bound and Welford mean/variance accumulation. Calibration attempts time out into disabled state.
+- Guard conditions on invalid sensor readings and invalid measured update intervals, including missed-sample faults.
 - **Release-to-arm** logic: observe switch release; require 40 consecutive upright sample checks (≤8°) with switch held, then allow the software command gate.
 - **Trip:** ≥25° pitch, sensor failure or invalid calculation -> disable the driver; fault requires release before rearming. A fatal I²C failure is latched until hardware reset.
 - **Compile-time actuator interlock**: `MOTOR_OUTPUT_ALLOWED 0` is the default in `firmware/tiva/src/main.c`. Motor driver STBY remains LOW; code alone does **not** replace a motor-battery fuse, power switch or hardware cutoff.
@@ -83,7 +84,7 @@ stateDiagram-v2
   FAULT --> DISARMED: valid sensor + release
 ```
 
-**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
+**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
 
 ## Getting started
 
@@ -99,13 +100,24 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic \
 ./test_controller
 ```
 
+Run the additional portable diagnostic tests:
+
+```bash
+gcc -std=c11 -Wall -Wextra -Werror -pedantic \
+    -Ifirmware/tiva/include \
+    firmware/tiva/src/diagnostics.c tests/test_diagnostics.c \
+    -lm -o test_diagnostics
+./test_diagnostics
+python3 -m unittest discover -s tests -p 'test_simulation.py'
+```
+
 GitHub Actions also runs these **host-side** checks after pushes and pull requests. Their success **does not establish a working Tiva firmware build or safe motor actuation**.
 
 ### 2. Prepare TI Code Composer Studio / TivaWare
 
 1. Install TI [Code Composer Studio](https://www.ti.com/tool/CCSTUDIO) and [EK-TM4C123GXL board resources / TivaWare](https://www.ti.com/tool/EK-TM4C123GXL).
 2. Start from a **working TivaWare example** for the exact `TM4C123GH6PM` target to obtain the correct startup file, linker configuration, compiler options and driverlib link library.
-3. Add `firmware/tiva/src/main.c` and `controller.c`, include `firmware/tiva/include`, and configure TI TivaWare library/include paths.
+3. Add `firmware/tiva/src/main.c`, `controller.c` and `diagnostics.c`, include `firmware/tiva/include`, and configure TI TivaWare library/include paths.
 4. Build and test with **motors unpowered**, confirming sensor reads, GPIO voltage, clock, real timing and pin multiplexing.
 5. Do **not** enable `MOTOR_OUTPUT_ALLOWED` until the independent physical wiring/current/polarity review is completed.
 
@@ -113,9 +125,18 @@ See [firmware setup and limitations](firmware/tiva/README.md) and [test plan](do
 
 ### 3. Study the MATLAB model (not experimental results)
 
-Run `matlab/model_and_design.m` with MATLAB Control System Toolbox. It constructs a simplified **pitch-only inverted-pendulum** state-space model, applies 5 ms zero-order-hold discretization and demonstrates **LQR**. The model's masses, inertia, friction and torque gain are **placeholder values**. The current MCU code uses **PD/PID, not LQR**.
+Run `matlab/model_and_design.m` with MATLAB Control System Toolbox. For a separate **theoretical virtual PD vs open-loop** comparison, run `matlab/pd_theoretical_comparison.m` (base MATLAB; also not a hardware experiment). It constructs a simplified **pitch-only inverted-pendulum** state-space model, applies 5 ms zero-order-hold discretization and demonstrates **LQR**. The model's masses, inertia, friction and torque gain are **placeholder values**. The current MCU code uses **PD/PID, not LQR**.
 
-Only use `matlab/plot_telemetry.m` with an actual measured log. No logging implementation or real telemetry file is provided yet.
+Only use `matlab/plot_telemetry.m` with an actual measured log carrying `data_origin=MEASURED_TIVA_ROBOT`. It intentionally refuses theoretical traces. **No real telemetry is provided yet.**
+
+### 4. Reproduce the theoretical pitch-only model
+
+```bash
+python3 simulation/run_pitch_sim.py --angle 4 --output outputs/PD_THEORETICAL.csv
+python3 simulation/run_pitch_sim.py --angle 4 --open-loop --output outputs/OPEN_LOOP_THEORETICAL.csv
+```
+
+This generates **simulation-only** CSVs and JSON summary using an idealized pitch plant and *different*, virtual controller gains; it is not proof that the Tiva robot balances. See [simulation design and limitations](simulation/README.md) and [experimental data protocol](docs/experimental_protocol.md).
 
 ## Repository contents
 
@@ -124,13 +145,19 @@ Tiva-Self-Balancing-Robot/
 ├── README.md
 ├── firmware/tiva/
 │   ├── include/controller.h              # control/safety interfaces
+│   ├── include/diagnostics.h             # calibration + timing interfaces
 │   ├── src/controller.c                  # estimator, PID and safety machine
+│   ├── src/diagnostics.c                 # stationary gyro calibration / timing
 │   ├── src/main.c                        # TivaWare 200 Hz application
 │   ├── src/imu_backend.h                 # MPU6050 I2C functions
 │   ├── src/motor_backend.h               # TB6612FNG direction / PWM / STBY
 │   └── README.md                         # CCS and device setup
+├── simulation/
+│   ├── run_pitch_sim.py                  # theoretical-only RK4 simulator
+│   └── README.md
 ├── matlab/
 │   ├── model_and_design.m                # illustrative continuous/discrete model
+│   ├── pd_theoretical_comparison.m       # virtual PD/open-loop MATLAB study
 │   └── plot_telemetry.m                  # plot *measured* CSV once available
 ├── hardware/
 │   ├── wiring.md                         # connection assumptions / precautions
@@ -138,6 +165,8 @@ Tiva-Self-Balancing-Robot/
 ├── docs/
 │   ├── architecture.md                   # system/control/power/safety diagrams
 │   ├── control_theory.md                 # equations, assumptions, modeling plan
+│   ├── calibration_timing.md             # boot sequence and deadline diagrams
+│   ├── experimental_protocol.md          # separate measured vs simulated data
 │   ├── component_selection.md            # motor/driver/supply worksheet
 │   ├── optimization_and_design_review.md # implemented vs planned work
 │   ├── verification_plan.md             # before-power-on / bench criteria
@@ -147,6 +176,8 @@ Tiva-Self-Balancing-Robot/
 │       ├── STAGE2_modeling_report.md
 │       └── STAGE3_final_report.md
 ├── tests/test_controller.c               # host-side estimator/PID/safety tests
+├── tests/test_diagnostics.c              # calibration & timer-wrap tests
+├── tests/test_simulation.py              # theoretical model assertions
 ├── .github/workflows/host-tests.yml
 └── tools/publish_github.ps1
 ```
@@ -163,9 +194,9 @@ Tiva-Self-Balancing-Robot/
 
 ## What can be claimed today?
 
-**Implemented in source:** portable C pitch estimator, guarded PD/PID, safety state machine, Tiva peripheral draft, documentation and tests.  
-**Verified:** regression tests on host compiler, based on GitHub Actions when green.  
-**Not verified:** CCS/TivaWare compilation, hardware PCB/circuit, physical motor operation, IMU calibration, 200 Hz real-time behavior, assembled robot, stable balancing, power safety, experimental plots and quantitative performance.
+**Implemented in source:** portable C pitch estimator, guarded PD/PID, safety state machine, gyro calibration, Timer1 elapsed-period guard, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
+**Verified:** host-side regression tests and deterministic simulation checks, based on GitHub Actions when green.  
+**Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, actual stationary IMU calibration, sampling timing, assembled robot, balancing, physical protection, measured telemetry and hardware performance.
 
 ## References
 

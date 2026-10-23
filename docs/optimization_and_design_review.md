@@ -13,6 +13,8 @@
 | Configuration traceability | Documented axes/pins, motor polarity assumptions and default parameters | `docs/architecture.md`, wiring file | Unknown purchased part variants |
 | Analysis traceability | PID in firmware explicitly separated from illustrative LQR in MATLAB | `docs/control_theory.md`, MATLAB script | MATLAB only illustrative |
 
+**Additional implementation:** `diagnostics.c` now includes a Welford mean/variance gyroscope calibration with stationary/switch acceptance and wrap-safe Timer1 elapsed-period diagnostics, and `simulation/run_pitch_sim.py` supplies a clearly labeled theoretical model with offline tests. The MATLAB plotter rejects theoretical provenance. See [calibration and timing design](calibration_timing.md) and [experimental protocol](experimental_protocol.md).
+
 These changes are mostly **safety/reliability improvements**, not benchmarked CPU optimizations. Descriptions such as “optimized balancing,” “production ready,” or “zero hardware defects” would be unsupported.
 
 ## Next actions in recommended priority order
@@ -28,10 +30,10 @@ These changes are mostly **safety/reliability improvements**, not benchmarked CP
 
 ### P1 — time determinism and fault containment
 
-7. Replace nominal `Ts=0.005` in estimator with a **measured, validated per-loop interval** from a high-resolution timer; detect missed deadlines, record worst-case execution time and jitter. The current source only rejects invalid dt if supplied; `main.c` still passes nominal dt.
+7. **Partially implemented:** Timer1 elapsed-period sampling and preliminary out-of-window fault (host-tested); **still required:** scope-verified absolute timing, measured worst-case execution time, jitter statistics, missed flags/counters exposed to logs and hardware watchdog.
 8. Add I²C transaction timeout measurements and errors per type; verify safe recovery on NACK, disconnect and stuck clock/data.
 9. Add a true independent watchdog / brownout strategy. The existing software gate cannot recover if the CPU stops executing.
-10. Add switch debounce and a dedicated sensor calibration state with stillness and angle validation.
+10. **Partially implemented:** stationary upright gyro bias/variance calibration with timeout (host-tested). Still add switch debounce, accelerometer calibration/offset, temperature drift study and hardware confirmation.
 11. Add sampled telemetry (timestamp, angle, gyro, command, safety state, battery/current), using DMA/ring buffers or low-priority output to avoid blocking 5 ms control loop.
 12. Set hardware-validated limits for velocity, torque/current and repeated re-arming after faults.
 

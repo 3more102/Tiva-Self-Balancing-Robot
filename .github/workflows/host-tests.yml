@@ -22,5 +22,26 @@ jobs:
             firmware/tiva/src/controller.c tests/test_controller.c \
             -lm -o /tmp/test_controller_ubsan
           /tmp/test_controller_ubsan
+      - name: Compile and run gyro calibration / timing diagnostics
+        run: |
+          gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
+            -Ifirmware/tiva/include \
+            firmware/tiva/src/diagnostics.c tests/test_diagnostics.c \
+            -lm -o /tmp/test_diagnostics
+          /tmp/test_diagnostics
+      - name: Undefined behavior sanitizer for diagnostics
+        run: |
+          gcc -std=c11 -O1 -g -Wall -Wextra -Werror -pedantic \
+            -fsanitize=undefined -fno-sanitize-recover=all \
+            -Ifirmware/tiva/include \
+            firmware/tiva/src/diagnostics.c tests/test_diagnostics.c \
+            -lm -o /tmp/test_diagnostics_ubsan
+          /tmp/test_diagnostics_ubsan
+      - name: Test theoretical pitch-only simulation
+        run: python3 -m unittest discover -s tests -p "test_simulation.py" -v
+      - name: Generate deterministic theoretical simulation outputs
+        run: |
+          python3 simulation/run_pitch_sim.py --angle 4 --output /tmp/robot_pitch_PD_THEORETICAL.csv
+          python3 simulation/run_pitch_sim.py --angle 4 --open-loop --output /tmp/robot_pitch_OPEN_LOOP_THEORETICAL.csv
       - name: Validate documentation internal links
         run: python3 tools/check_docs.py

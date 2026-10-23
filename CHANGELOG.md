@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 — 2026-10-23 — Calibration, timing diagnostics and theoretical-model validation
+
+- Add portable stationary gyro bias / variance calibration with Welford accumulation and 200-sample acceptance; integrate startup timeout in Tiva MCU source.
+- Use Timer1A's free-running downcounter to supply per-cycle elapsed `dt` and fault abnormal timing. The actual period has **not** been measured on a board.
+- Add strict GCC/UBSan tests of gyro calibration, outlier rejection and uint32 timer-wrap behavior.
+- Add deterministic, standard-library-only RK4 simulation with idealized pitch dynamics, virtual PD controller, bounded command, labeled theoretical CSV/JSON results and Python regression tests.
+- Reject theoretical CSV data in MATLAB `plot_telemetry.m` to prevent simulated values being called measured hardware results.
+- Add boot/timer Mermaid sequence diagrams, experimental protocol and expanded setup/README documentation.
+- Add independent base-MATLAB comparison of virtual PD and uncontrolled pitch-only dynamics, explicitly labeled theoretical.
+- No target build, physical robot test or model identification is claimed.
+
+
 ## 0.2.0 — 2026-10-23 — Engineering documentation and safety review
 
 - Improved startup safety: new release-to-arm state machine with a 40-sample upright qualification period, 25-degree trip and safe reset/fault handling; integration in Tiva main loop.
