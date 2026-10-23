@@ -64,8 +64,8 @@ int main(void)
     float ay, az, gx;
     float bias_sum = 0.0f;
     uint32_t i;
-    bool fault_latched = false;
     bool imu_ok;
+    BalanceSafety safety;
     TiltEstimator estimator;
     BalanceController controller;
     SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
@@ -85,6 +85,7 @@ int main(void)
             bias_sum += gx;
         }
     }
+    balance_safety_init(&safety);
     tilt_estimator_init(&estimator, 0.5f, bias_sum / 200.0f);
     balance_controller_init(&controller, 0.016f, 0.0f, 0.0009f);
 
@@ -93,33 +94,25 @@ int main(void)
         float angle, output;
         await_tick();
         pressed = (GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4) & GPIO_PIN_4) == 0U;
-        if (!pressed) fault_latched = false;
         if (!imu_ok || !mpu_sample(&ay, &az, &gx)) {
-            imu_ok = false;
-            fault_latched = true;
+            imu_ok = false; /* Fatal sensor fault requires a hardware reset. */
+            (void)balance_safety_update(&safety, NAN, pressed, false);
             motors_off();
-            indicator(GPIO_PIN_1); /* red: sensor fault */
+            indicator(GPIO_PIN_1);
             continue;
         }
         angle = tilt_estimator_update(&estimator, ay, az, gx, 1.0f / CONTROL_HZ);
-        if (!balance_is_safe(angle, pressed, imu_ok)) {
-            if (pressed && (!isfinite(angle) || fabsf(angle) >= 25.0f))
-                fault_latched = true;
+        if (!balance_safety_update(&safety, angle, pressed, imu_ok)) {
             balance_controller_reset(&controller);
             motors_off();
-            indicator(fault_latched ? GPIO_PIN_1 : GPIO_PIN_2);
-            continue;
-        }
-        if (fault_latched) {
-            motors_off();
-            indicator(GPIO_PIN_1);
+            indicator(safety.mode == BALANCE_FAULT ? GPIO_PIN_1 : GPIO_PIN_2);
             continue;
         }
         output = balance_controller_update(
             &controller, angle, gx - estimator.gyro_bias_dps,
             1.0f / CONTROL_HZ);
         if (!isfinite(output)) {
-            fault_latched = true;
+            (void)balance_safety_update(&safety, NAN, pressed, false);
             motors_off();
             indicator(GPIO_PIN_1);
             continue;
