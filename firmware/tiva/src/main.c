@@ -16,6 +16,7 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
 #include "controller.h"
+#include "diagnostics.h"
 
 #define MOTOR_OUTPUT_ALLOWED 0  /* MUST remain disabled before hardware qualification. */
 #define MOTOR_POLARITY (-1.0f)
@@ -46,11 +47,18 @@ static void wait_for_peripheral(uint32_t id)
 static void control_timer_init(void)
 {
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
     wait_for_peripheral(SYSCTL_PERIPH_TIMER0);
+    wait_for_peripheral(SYSCTL_PERIPH_TIMER1);
     TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
     TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() / CONTROL_HZ - 1U);
     TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
     TimerEnable(TIMER0_BASE, TIMER_A);
+    /* Timer1A: continuously running timestamp source independent of polling.
+       Unsigned down-count subtraction safely handles the 32-bit rollover. */
+    TimerConfigure(TIMER1_BASE, TIMER_CFG_PERIODIC);
+    TimerLoadSet(TIMER1_BASE, TIMER_A, 0xFFFFFFFFU);
+    TimerEnable(TIMER1_BASE, TIMER_A);
 }
 
 static void await_tick(void)
@@ -62,8 +70,10 @@ static void await_tick(void)
 int main(void)
 {
     float ay, az, gx;
-    float bias_sum = 0.0f;
     uint32_t i;
+    float dt_s = 0.0f;
+    GyroCalibration gyro_cal;
+    LoopTiming timing;
     bool imu_ok;
     BalanceSafety safety;
     TiltEstimator estimator;
@@ -77,23 +87,43 @@ int main(void)
     indicator(GPIO_PIN_2); /* blue: safe/off */
     imu_ok = imu_init();
     control_timer_init();
+    gyro_cal_init(&gyro_cal);
     if (imu_ok) {
-        /* Keep robot stationary for first 200 gyro calibration samples. */
-        for (i = 0U; i < 200U; ++i) {
+        /* Calibration requires 200 consecutive, upright, still samples
+           with SW1 RELEASED. Timeout after 10 s of unsuccessful attempts. */
+        for (i = 0U; i < 2000U && !gyro_cal_ready(&gyro_cal); ++i) {
+            bool released;
             await_tick();
+            released = (GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4) &
+                        GPIO_PIN_4) != 0U;
             if (!mpu_sample(&ay, &az, &gx)) { imu_ok = false; break; }
-            bias_sum += gx;
+            (void)gyro_cal_add(&gyro_cal, ay, az, gx, released);
         }
+        if (!gyro_cal_ready(&gyro_cal)) imu_ok = false;
     }
     balance_safety_init(&safety);
-    tilt_estimator_init(&estimator, 0.5f, bias_sum / 200.0f);
+    tilt_estimator_init(&estimator, 0.5f,
+                        imu_ok ? gyro_cal_bias_dps(&gyro_cal) : 0.0f);
+    loop_timing_init(&timing, SysCtlClockGet(),
+                     TimerValueGet(TIMER1_BASE, TIMER_A));
     balance_controller_init(&controller, 0.016f, 0.0f, 0.0009f);
 
     for (;;) {
         bool pressed;
         float angle, output;
         await_tick();
+        /* Actual elapsed time, not assumed constant Ts. A missed/abnormal
+           sample deadline cuts motor output via the software safety gate. */
+        const bool on_time = loop_timing_step(
+            &timing, TimerValueGet(TIMER1_BASE, TIMER_A), &dt_s);
         pressed = (GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4) & GPIO_PIN_4) == 0U;
+        if (!on_time) {
+            (void)balance_safety_update(&safety, NAN, pressed, false);
+            balance_controller_reset(&controller);
+            motors_off();
+            indicator(GPIO_PIN_1);
+            continue;
+        }
         if (!imu_ok || !mpu_sample(&ay, &az, &gx)) {
             imu_ok = false; /* Fatal sensor fault requires a hardware reset. */
             (void)balance_safety_update(&safety, NAN, pressed, false);
@@ -101,7 +131,7 @@ int main(void)
             indicator(GPIO_PIN_1);
             continue;
         }
-        angle = tilt_estimator_update(&estimator, ay, az, gx, 1.0f / CONTROL_HZ);
+        angle = tilt_estimator_update(&estimator, ay, az, gx, dt_s);
         if (!balance_safety_update(&safety, angle, pressed, imu_ok)) {
             balance_controller_reset(&controller);
             motors_off();
@@ -110,7 +140,7 @@ int main(void)
         }
         output = balance_controller_update(
             &controller, angle, gx - estimator.gyro_bias_dps,
-            1.0f / CONTROL_HZ);
+            dt_s);
         if (!isfinite(output)) {
             (void)balance_safety_update(&safety, NAN, pressed, false);
             motors_off();
