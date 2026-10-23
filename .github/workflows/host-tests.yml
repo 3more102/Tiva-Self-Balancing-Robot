@@ -1,0 +1,11 @@
+name: Host C controller tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile with warnings as errors
+        run: gcc -std=c11 -Wall -Wextra -Werror -pedantic -Ifirmware/tiva/include firmware/tiva/src/controller.c tests/test_controller.c -lm -o /tmp/test_controller
+      - name: Run unit tests
+        run: /tmp/test_controller
