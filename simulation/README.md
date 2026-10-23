@@ -16,4 +16,6 @@ The virtual controller uses `Kp=0.09 command/deg` and `Kd=0.008 command/(deg/s)`
 
 Numerical method: zero-order-held controller inputs, fourth-order Runge–Kutta plant integration with `Ts=5 ms`. The open-loop comparison exits when pitch magnitude passes the arbitrary 45-degree validity threshold. This is not a sensor cutoff setting.
 
+For MATLAB-side reproducibility, [`pd_theoretical_comparison.m`](../matlab/pd_theoretical_comparison.m) implements an equivalent idealized pitch-only RK4 virtual PD/open-loop study with the same nominal plant and gains. It remains **theoretical** and does not implement the firmware gains.
+
 For the original course requirement, MATLAB controller design and real experimental analysis still must be completed. See [model_and_design.m](../matlab/model_and_design.m) and [Stage 2 report](../docs/reports/STAGE2_modeling_report.md).
