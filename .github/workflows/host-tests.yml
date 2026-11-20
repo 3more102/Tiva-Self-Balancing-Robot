@@ -103,8 +103,8 @@ jobs:
             firmware/tiva/src/ai_inference.c firmware/tiva/src/ai_navigation.c \
             tests/test_ai_navigation.c -lm -o /tmp/test_ai_navigation_ubsan
           /tmp/test_ai_navigation_ubsan
-      - name: Test deterministic TinyML dataset generation
-        run: python -m unittest discover -s tests -p "test_ai_dataset.py" -v
+      - name: Test TinyML dataset generation and classification metrics
+        run: python -m unittest discover -s tests -p "test_ai_*.py" -v
       - name: Train TinyML model smoke test
         run: |
           python ai/train_model.py --samples 10000 --epochs 30 \
