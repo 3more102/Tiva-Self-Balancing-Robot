@@ -52,17 +52,19 @@ void balance_controller_init(BalanceController *pid, float kp, float ki, float k
 
 void balance_controller_reset(BalanceController *pid) { pid->integral = 0.0f; }
 
-float balance_controller_update(BalanceController *pid, float angle_deg,
-                                float gyro_x_dps, float dt_s)
+float balance_controller_update_target(BalanceController *pid,
+                                       float angle_deg, float gyro_x_dps,
+                                       float target_angle_deg, float dt_s)
 {
     if (!isfinite(angle_deg) || !isfinite(gyro_x_dps) ||
-        !isfinite(dt_s) || dt_s <= 0.0f || dt_s > BALANCE_MAX_DT_S ||
+        !isfinite(target_angle_deg) || !isfinite(dt_s) ||
+        dt_s <= 0.0f || dt_s > BALANCE_MAX_DT_S ||
         !isfinite(pid->kp) || !isfinite(pid->ki) || !isfinite(pid->kd) ||
         !isfinite(pid->integral)) return NAN;
 
     /* Derivative-on-measurement suppresses setpoint derivative kick.
      * Sign and effective motor torque depend on physical installation. */
-    const float error = -angle_deg;
+    const float error = target_angle_deg - angle_deg;
     const float proposed = clampf(pid->integral + error * dt_s,
                                   -pid->integral_limit, pid->integral_limit);
     const float pd = pid->kp * error - pid->kd * gyro_x_dps;
@@ -75,6 +77,13 @@ float balance_controller_update(BalanceController *pid, float angle_deg,
     }
     return clampf(pd + pid->ki * pid->integral,
                   -pid->output_limit, pid->output_limit);
+}
+
+float balance_controller_update(BalanceController *pid, float angle_deg,
+                                float gyro_x_dps, float dt_s)
+{
+    return balance_controller_update_target(pid, angle_deg, gyro_x_dps,
+                                             0.0f, dt_s);
 }
 
 bool balance_is_safe(float angle_deg, bool enable_pressed, bool sensor_ok)

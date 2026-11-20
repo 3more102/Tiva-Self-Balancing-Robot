@@ -45,6 +45,17 @@ static void test_controller(void)
     assert(!balance_is_safe(NAN, true, true));
 }
 
+static void test_controller_target(void)
+{
+    BalanceController pid;
+    balance_controller_init(&pid, 0.02f, 0.0f, 0.0f);
+    close_to(balance_controller_update_target(&pid, 1.0f, 0.0f,
+                                              3.0f, 0.005f),
+             0.04f, 0.001f);
+    assert(isnan(balance_controller_update_target(&pid, 0.0f, 0.0f,
+                                                  NAN, 0.005f)));
+}
+
 static void test_arming(void)
 {
     BalanceSafety safety;
@@ -82,6 +93,7 @@ int main(void)
 {
     test_estimator();
     test_controller();
+    test_controller_target();
     test_arming();
     puts("PASS: estimator, PID, arming, fault/reset and safety regression tests");
     return 0;

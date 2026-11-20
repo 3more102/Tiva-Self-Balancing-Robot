@@ -34,3 +34,14 @@ Board: **TI EK-TM4C123GXL / TM4C123GH6PM**; driver **TB6612FNG**; sensor **MPU60
 7. Driver STBY is kept LOW by default firmware flag; to run motors require operator switch and explicit source change.
 
 References: [TI board user manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf), [TM4C123 datasheet](https://www.ti.com/lit/ds/symlink/tm4c123gh6pm.pdf). Consult breakout/driver datasheets before building.
+
+
+## Planned obstacle-range sensors — pinout not assigned
+
+The obstacle policy expects three logical range inputs: front, left and right. The first proposed arrangement is three fixed range sensors. Trigger them sequentially with adequate quiet time between measurements; do not trigger ultrasonic modules simultaneously because echoes can interfere.
+
+No Tiva GPIO pins are assigned for these sensors yet. Reserve pins only after checking the exact EK-TM4C123GXL header, peripheral pin mux, existing I2C/PWM/motor signals, SW1 and LED usage. The sensor driver must timestamp each completed reading, reject timeouts and out-of-range echoes, and mark readings invalid rather than reusing old values.
+
+Check the exact sensor breakout's Echo voltage against the TM4C123 GPIO input specification. Use a divider or level shifter whenever the Echo signal can exceed the allowed input voltage. Do not assume that a module powered from 5 V has a 3.3 V Echo output.
+
+See [obstacle avoidance design](../docs/obstacle_avoidance.md) for the sample-age limits and software state machine. This is a proposed interface, not an as-built wiring instruction.

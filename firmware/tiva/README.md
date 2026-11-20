@@ -15,7 +15,7 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 ## 2. Building the draft
 
 1. Import/create a CCS target project for the exact TM4C123GH6PM. Verify the official example builds and flashes first.
-2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, and `src/diagnostics.c`; do **not** compile helper headers as separate units. They are locally included by `main.c`.
+2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, `src/diagnostics.c`, and `src/navigation.c`; do **not** compile helper headers as separate units. The IMU and motor backend headers are locally included by `main.c`. The navigation policy is portable C and is called by `main.c`; autonomy remains disabled until range acquisition and a separate operator enable are implemented.
 3. Add `include` and the TivaWare root to include directories, and link the correct version of the TivaWare driverlib.
 4. Enable appropriate Cortex-M4F FPU ABI/compiler settings and `math` routines (`atan2f`, `fabsf`, `isfinite`, `NAN`).
 5. **Do not alter `MOTOR_OUTPUT_ALLOWED 0`** during first sensor/logic tests. Verify STBY remains low.
@@ -44,11 +44,16 @@ The gyro offset is estimated only after 200 **consecutive** valid, stationary, u
 
 **Polarity flags in `main.c` are provisional.** Verify both motors and sensor signs with wheels raised and power limited before enabling driver output.
 
-## 5. Important limits
+## 5. Obstacle navigation status
+
+The portable front/left/right navigation state machine is in `src/navigation.c` and its interface is in `include/navigation.h`. Its host tests are in `../../tests/test_navigation.c`. `main.c` routes the policy's pitch/yaw requests through the balance controller and differential mixer, but autonomy is hard-disabled and range inputs remain invalid. The TivaWare range-sensor driver, physical sensor pin map and separate autonomy-enable input are not present yet. See [obstacle avoidance design](../../docs/obstacle_avoidance.md).
+
+## 6. Important limits
 
 - Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing, CPU hangs and counter overflow/aliasing after ~53.7 s remain limitations.
 - I2C transaction handling has a software-bounded busy poll; timeouts, bus recovery, transaction sequencing and maximum duration still require real-target tests.
 - No wheel encoders, independent watchdog, UART logger, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist.
+- The main loop calls the portable navigation policy and routes its pitch/yaw requests through the controller and differential mixer, but autonomy is hard-disabled and all range inputs remain invalid until a real sensor backend and operator enable are implemented.
 - Current MATLAB LQR is an illustrative comparison, not deployed code. Control gains are placeholders.
 - Software output gating does not substitute for power isolation and mechanical restraint.
 

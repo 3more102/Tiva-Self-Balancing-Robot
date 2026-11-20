@@ -26,6 +26,10 @@
 | C-07 | Gyro bias calibration: switch, motion, 200 valid samples and noise bounds | No completion for unstable/noisy samples | Automated host C tests; hardware pending |
 | C-08 | Timer1 unsigned downcounter wrap, 5 ms acceptance, timing outliers | Accept good clock ticks, reject abnormal interval | Automated host C tests; target timing unverified |
 | S-01 | Theoretical pitch-only PD / open-loop regression | Internally consistent numerical results | Automated Python, **not measured robot data** |
+| N-01 | Invalid/stale front range and autonomy disable | Travel request remains zero | Automated host C tests |
+| N-02 | Three distinct clear samples and side-clearance turn selection | Cruise only after confirmations; no turn without a fresh clear side | Automated host C tests |
+| N-03 | Timed-turn front-data timeout and post-turn re-verification | Stop on stale front data; verify clearance before cruise | Automated host C tests |
+| N-04 | uint32 millisecond timestamp rollover and stale side readings | Freshness remains correct across wrap; stale sides cannot authorize a turn | Automated host C tests |
 | D-01 | Check relative Markdown links and code fences | No broken links, balanced fences | Automated |
 | T-01 | Compile all embedded source with CCS for TM4C123 | No target compiler/link errors | **Not tested** |
 | T-02 | Inspect GPIO levels / power without motors connected | PA5 LOW, safe pin voltages | **Not tested** |
