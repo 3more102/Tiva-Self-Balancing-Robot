@@ -42,7 +42,7 @@ The navigation interface is independent of TivaWare. The sensor backend supplies
 | Cruise lean request | 1.5 degrees | Initial, unvalidated forward pitch target |
 | Turn bias | 0.12 normalized | Initial, unvalidated differential command |
 
-These are **software starting values**, not measured stopping distances or safe speeds. Tune them only after the sensor geometry, chassis, motors and control loop are measured.
+These are **software starting values**, not measured stopping distances or safe speeds. The policy rejects zero and values above 4000 mm; change NAV_MAX_RANGE_MM to match the selected sensor datasheet. In particular, timeout sentinels such as 65535 must never be interpreted as clear space. Tune all thresholds only after the sensor geometry, chassis, motors and control loop are measured.
 
 ### State behavior
 
