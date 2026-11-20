@@ -46,7 +46,7 @@ The gyro offset is estimated only after 200 **consecutive** valid, stationary, u
 
 ## 5. Obstacle navigation status
 
-The portable front/left/right navigation state machine is in `src/navigation.c` and its interface is in `include/navigation.h`. Its host tests are in `../../tests/test_navigation.c`. The range-sensor acquisition driver, physical sensor pin map and separate autonomy-enable input are not present yet; the main-loop call currently receives invalid placeholder readings. See [obstacle avoidance design](../../docs/obstacle_avoidance.md).
+The portable front/left/right navigation state machine is in `src/navigation.c` and its interface is in `include/navigation.h`. Its host tests are in `../../tests/test_navigation.c`. `main.c` routes the policy's pitch/yaw requests through the balance controller and differential mixer, but autonomy is hard-disabled and range inputs remain invalid. The TivaWare range-sensor driver, physical sensor pin map and separate autonomy-enable input are not present yet. See [obstacle avoidance design](../../docs/obstacle_avoidance.md).
 
 ## 6. Important limits
 
