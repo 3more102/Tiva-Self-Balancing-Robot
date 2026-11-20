@@ -33,6 +33,8 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 | Status | PF1 (red), PF2 (blue), PF3 (green) | Fault, disabled, enabled; unverified target |
 | Timer0A | No pin | 200 Hz desired periodic sample wake-up |
 | Timer1A | No pin | 32-bit free-running downcounter used to calculate elapsed control dt |
+| Timer2A | No pin | One-shot 10 µs trigger pulse when the optional HC-SR04 backend is enabled |
+| GPIOE | PE0–PE5 | Optional front/left/right TRIG/ECHO pins; backend disabled by default |
 
 Before using PWM, inspect the board's PB6↔PD0 and PB7↔PD1 hard links, board revision and pin mux for conflicts.
 
