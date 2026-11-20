@@ -71,10 +71,10 @@ static void await_tick(void)
 int main(void)
 {
     float ay, az, gx;
+    uint32_t i;
     float dt_s = 0.0f;
     float navigation_ms_remainder = 0.0f;
     uint32_t navigation_now_ms = 0U;
-    uint32_t i;
     GyroCalibration gyro_cal;
     LoopTiming timing;
     bool imu_ok;
@@ -108,52 +108,61 @@ int main(void)
         }
         if (!gyro_cal_ready(&gyro_cal)) imu_ok = false;
     }
+
     balance_safety_init(&safety);
     tilt_estimator_init(&estimator, 0.5f,
                         imu_ok ? gyro_cal_bias_dps(&gyro_cal) : 0.0f);
     loop_timing_init(&timing, SysCtlClockGet(),
                      TimerValueGet(TIMER1_BASE, TIMER_A));
     balance_controller_init(&controller, 0.016f, 0.0f, 0.0009f);
-    navigation_init(&navigation);
 
-    /*
-     * No range-sensor backend or separate autonomy switch is wired yet.
-     * Keep autonomy false and all three range-valid flags false. This makes
-     * the navigation command path testable without permitting autonomous
-     * movement. Replace this placeholder only after sensor and pin review.
-     */
+    navigation_init(&navigation);
+    /* Hard-disabled until range acquisition and a separate operator enable
+       input have both been implemented and verified. */
     navigation_input.autonomy_enabled = false;
 
     for (;;) {
         bool pressed;
-        float angle, output, pitch_target_deg, yaw_bias;
-        await_tick();
+        float angle, output;
 
+        await_tick();
         /* Actual elapsed time, not assumed constant Ts. A missed/abnormal
            sample deadline cuts motor output via the software safety gate. */
         const bool on_time = loop_timing_step(
             &timing, TimerValueGet(TIMER1_BASE, TIMER_A), &dt_s);
-        pressed = (GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4) &
-                   GPIO_PIN_4) == 0U;
+        pressed = (GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4) & GPIO_PIN_4) == 0U;
+
         if (!on_time) {
             (void)balance_safety_update(&safety, NAN, pressed, false);
             balance_controller_reset(&controller);
+            (void)navigation_update(&navigation, &navigation_input,
+                                    navigation_now_ms);
             motors_off();
             indicator(GPIO_PIN_1);
             continue;
         }
+
         if (!imu_ok || !mpu_sample(&ay, &az, &gx)) {
             imu_ok = false; /* Fatal sensor fault requires a hardware reset. */
             (void)balance_safety_update(&safety, NAN, pressed, false);
+            (void)navigation_update(&navigation, &navigation_input,
+                                    navigation_now_ms);
             motors_off();
             indicator(GPIO_PIN_1);
             continue;
         }
 
         angle = tilt_estimator_update(&estimator, ay, az, gx, dt_s);
+        if (!balance_safety_update(&safety, angle, pressed, imu_ok)) {
+            balance_controller_reset(&controller);
+            (void)navigation_update(&navigation, &navigation_input,
+                                    navigation_now_ms);
+            motors_off();
+            indicator(safety.mode == BALANCE_FAULT ? GPIO_PIN_1 : GPIO_PIN_2);
+            continue;
+        }
 
-        /* Monotonic millisecond clock derived from measured dt; uint32 wrap
-           is intentional and matches navigation.c freshness arithmetic. */
+        /* Build a wrap-safe millisecond clock from the measured control dt. */
         navigation_ms_remainder += dt_s * 1000.0f;
         if (navigation_ms_remainder >= 1.0f) {
             const uint32_t elapsed_ms = (uint32_t)navigation_ms_remainder;
@@ -161,32 +170,26 @@ int main(void)
             navigation_ms_remainder -= (float)elapsed_ms;
         }
 
-        if (!balance_safety_update(&safety, angle, pressed, imu_ok)) {
-            balance_controller_reset(&controller);
-            motors_off();
-            indicator(safety.mode == BALANCE_FAULT ? GPIO_PIN_1 : GPIO_PIN_2);
-            continue;
-        }
-
-        navigation_command = navigation_update(&navigation,
-                                               &navigation_input,
-                                               navigation_now_ms);
-        pitch_target_deg = navigation_command.travel_permitted
-                         ? navigation_command.pitch_target_deg : 0.0f;
-        yaw_bias = navigation_command.travel_permitted
-                 ? navigation_command.yaw_bias : 0.0f;
-
+        navigation_command = navigation_update(
+            &navigation, &navigation_input, navigation_now_ms);
         output = balance_controller_update_target(
             &controller, angle, gx - estimator.gyro_bias_dps,
-            pitch_target_deg, dt_s);
+            navigation_command.pitch_target_deg, dt_s);
+
         if (!isfinite(output)) {
             (void)balance_safety_update(&safety, NAN, pressed, false);
+            balance_controller_reset(&controller);
+            (void)navigation_update(&navigation, &navigation_input,
+                                    navigation_now_ms);
             motors_off();
             indicator(GPIO_PIN_1);
             continue;
         }
 
-        motor_command_differential(MOTOR_POLARITY * output, yaw_bias);
+        motor_command_differential(
+            MOTOR_POLARITY * output,
+            navigation_command.travel_permitted ?
+                navigation_command.yaw_bias : 0.0f);
         indicator(MOTOR_OUTPUT_ALLOWED ? GPIO_PIN_3 : GPIO_PIN_2);
     }
 }
