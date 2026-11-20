@@ -2,6 +2,8 @@
 
 **Status:** portable navigation policy and host tests are implemented. The TivaWare range-sensor acquisition, physical sensor wiring, main-loop integration and floor tests are not implemented or verified. Motor output remains disabled by default.
 
+A separate **GyroGuard TinyML** decision module is now available in `firmware/tiva/src/ai_inference.c` and `ai_navigation.c`. It is a supervised MLP that selects high-level actions and passes them through an independent safety shield. It is not yet connected to the real range-sensor backend or `main.c`. See [AI architecture, training provenance and verification limits](ai_architecture.md).
+
 ## 1. Intended architecture
 
 The balance controller remains the inner, highest-priority loop. Obstacle avoidance is an outer motion-request layer:
