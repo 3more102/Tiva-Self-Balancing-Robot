@@ -7,10 +7,11 @@ three-sensor scheduling, distance conversion and freshness metadata for the
 front/left/right obstacle sensors. It is designed to sit between a TivaWare
 GPIO/timer adapter and the existing AiSensorFrame interface.
 
-It is **not** a complete Tiva peripheral driver. No sensor model, GPIO pin,
-trigger-pulse width, timer capture channel or electrical level is assumed.
-The physical sensor and EK-TM4C123GXL pin mapping must be confirmed before
-writing the target-specific adapter.
+The portable core does not assume a sensor model, GPIO pin, trigger-pulse
+width, timer capture channel or electrical level. An optional target adapter
+now exists in `firmware/tiva/src/range_backend.h` for HC-SR04-compatible
+trigger/echo modules. It is **disabled by default** because the actual sensor
+module has not been confirmed.
 
 ## Event flow
 
@@ -44,6 +45,42 @@ flowchart TD
 
 Only one ultrasonic channel is active at a time to reduce cross-talk.
 
+## Optional TM4C123GXL hardware adapter
+
+The optional `range_backend.h` adapter is selected with
+`RANGE_HCSR04_BACKEND_ENABLED`. Its default is `0`; do not change it until
+the physical sensor model, wiring and voltage levels are checked.
+
+When enabled, the provisional pin map is:
+
+| Sensor | TRIG | ECHO |
+|---|---|---|
+| Front | PE0 | PE1 |
+| Left | PE2 | PE3 |
+| Right | PE4 | PE5 |
+
+The EK-TM4C123GXL LaunchPad manual shows PE0–PE5 on its expansion headers
+([TI board manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf)). The adapter
+uses Timer2A to end a 10 µs trigger pulse and Port E GPIO interrupts on both
+Echo edges. Timer1A is already configured by `main.c` as a free-running
+80 MHz down-counter; the adapter passes its bitwise inverse to the portable
+core, with `ticks_per_us = 80`. This avoids a blocking pulse-width polling
+loop in the balance task.
+
+**Electrical warning:** many HC-SR04-style modules are powered from 5 V and may
+drive Echo to 5 V. The TM4C GPIO must not receive an out-of-spec voltage. Use a
+proper divider or level shifter if the exact module's datasheet does not
+guarantee a 3.3 V-safe Echo output. Confirm the trigger input recognizes the
+Tiva's 3.3 V output. The adapter has not been target-compiled or hardware
+tested.
+
+In `main.c`, range acquisition is serviced from the 200 Hz foreground loop.
+The AI sensor frame is refreshed and inference runs at 50 Hz in shadow mode.
+The action, confidence and safety-override flag are available as CCS watch
+variables, but the action is **not** connected to pitch target, yaw mixing or
+motor PWM. With the default disabled backend, all range channels remain
+invalid and the AI must return STOP.
+
 ## Current timing and conversion assumptions
 
 | Parameter | Current default | Meaning |
@@ -67,11 +104,12 @@ sensor's datasheet before relying on it.
 
 The caller supplies raw ticks from one free-running hardware counter plus a
 separate monotonic millisecond clock. range_array_init() receives ticks_per_us;
-for an 80 MHz timer this is 80. A zero or out-of-range scale disables triggering
-rather than silently assuming a timer frequency. If the Tiva timer counts down,
-pass the bitwise inverse of TimerValueGet() to create a wrap-safe increasing timestamp. The
-millisecond clock is used only for freshness, while raw ticks measure echo
-pulse width. This avoids assuming that the MCU has a separate microsecond clock.
+for an 80 MHz timer this is 80. A zero or out-of-range scale falls back to one
+tick per microsecond for host tests; target code must pass the real scale. If
+the Tiva timer counts down, pass the bitwise inverse of TimerValueGet() to
+create a wrap-safe increasing timestamp. The millisecond clock is used only
+for freshness, while raw ticks measure echo pulse width. This avoids assuming
+that the MCU has a separate microsecond clock.
 
 ## Freshness and safety
 
@@ -108,5 +146,6 @@ tests/test_range_sensing.c covers:
 tests/test_ai_sensor_adapter.c checks field order, validity, timestamps,
 yaw-rate propagation and null-argument handling.
 
-These are portable host tests. They do not verify GPIO interrupt latency,
-timer capture accuracy, acoustic performance or a physical sensor.
+These are portable host tests. They do not verify TivaWare GPIO interrupt
+latency, Timer2A trigger timing, Timer1A capture accuracy, acoustic performance,
+Echo voltage levels or a physical sensor.
