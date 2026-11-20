@@ -123,7 +123,7 @@ int main(void)
 
     for (;;) {
         bool pressed;
-        float angle, output;
+        float angle, output, pitch_target_deg;
 
         await_tick();
         /* Actual elapsed time, not assumed constant Ts. A missed/abnormal
@@ -135,8 +135,7 @@ int main(void)
         if (!on_time) {
             (void)balance_safety_update(&safety, NAN, pressed, false);
             balance_controller_reset(&controller);
-            (void)navigation_update(&navigation, &navigation_input,
-                                    navigation_now_ms);
+            navigation_init(&navigation);
             motors_off();
             indicator(GPIO_PIN_1);
             continue;
@@ -145,8 +144,7 @@ int main(void)
         if (!imu_ok || !mpu_sample(&ay, &az, &gx)) {
             imu_ok = false; /* Fatal sensor fault requires a hardware reset. */
             (void)balance_safety_update(&safety, NAN, pressed, false);
-            (void)navigation_update(&navigation, &navigation_input,
-                                    navigation_now_ms);
+            navigation_init(&navigation);
             motors_off();
             indicator(GPIO_PIN_1);
             continue;
@@ -155,8 +153,7 @@ int main(void)
         angle = tilt_estimator_update(&estimator, ay, az, gx, dt_s);
         if (!balance_safety_update(&safety, angle, pressed, imu_ok)) {
             balance_controller_reset(&controller);
-            (void)navigation_update(&navigation, &navigation_input,
-                                    navigation_now_ms);
+            navigation_init(&navigation);
             motors_off();
             indicator(safety.mode == BALANCE_FAULT ? GPIO_PIN_1 : GPIO_PIN_2);
             continue;
@@ -172,15 +169,16 @@ int main(void)
 
         navigation_command = navigation_update(
             &navigation, &navigation_input, navigation_now_ms);
+        pitch_target_deg = navigation_command.travel_permitted
+                         ? navigation_command.pitch_target_deg : 0.0f;
         output = balance_controller_update_target(
             &controller, angle, gx - estimator.gyro_bias_dps,
-            navigation_command.pitch_target_deg, dt_s);
+            pitch_target_deg, dt_s);
 
         if (!isfinite(output)) {
             (void)balance_safety_update(&safety, NAN, pressed, false);
             balance_controller_reset(&controller);
-            (void)navigation_update(&navigation, &navigation_input,
-                                    navigation_now_ms);
+            navigation_init(&navigation);
             motors_off();
             indicator(GPIO_PIN_1);
             continue;
