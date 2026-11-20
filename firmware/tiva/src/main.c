@@ -15,6 +15,7 @@
 #include "driverlib/pwm.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
+#include "driverlib/watchdog.h"
 #include "controller.h"
 #include "diagnostics.h"
 
@@ -25,6 +26,7 @@
 
 #define CONTROL_HZ 200U
 #define PWM_HZ 20000U
+#define WATCHDOG_TIMEOUT_MS 50U
 #define MPU6050_ADDRESS 0x68U
 #define I2C_TIMEOUT_LOOPS 50000U
 #define MPU6050_WHO_AM_I 0x75U
@@ -43,6 +45,30 @@ static void wait_for_peripheral(uint32_t id)
 
 #include "imu_backend.h"
 #include "motor_backend.h"
+
+/* WDOG0 is clocked from the 80 MHz system clock. The first 50 ms timeout
+   sets the interrupt flag; an uncleared second timeout resets the MCU. */
+static void watchdog_init(void)
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
+    wait_for_peripheral(SYSCTL_PERIPH_WDOG0);
+    if (WatchdogLockState(WATCHDOG0_BASE)) {
+        WatchdogUnlock(WATCHDOG0_BASE);
+    }
+    WatchdogReloadSet(WATCHDOG0_BASE,
+                      (SysCtlClockGet() / 1000U) * WATCHDOG_TIMEOUT_MS);
+    WatchdogResetEnable(WATCHDOG0_BASE);
+    WatchdogStallEnable(WATCHDOG0_BASE);
+    WatchdogEnable(WATCHDOG0_BASE);
+}
+
+/* Clear only a pending first-timeout flag. Clearing it reloads the counter. */
+static void watchdog_service(void)
+{
+    if (WatchdogIntStatus(WATCHDOG0_BASE, false) != 0U) {
+        WatchdogIntClear(WATCHDOG0_BASE);
+    }
+}
 
 static void control_timer_init(void)
 {
@@ -82,9 +108,11 @@ int main(void)
                    SYSCTL_XTAL_16MHZ); /* 80 MHz */
     FPUEnable();
     FPULazyStackingEnable();
+    watchdog_init();
     outputs_init();
     motors_off();
     indicator(GPIO_PIN_2); /* blue: safe/off */
+    watchdog_service();
     imu_ok = imu_init();
     control_timer_init();
     gyro_cal_init(&gyro_cal);
@@ -98,6 +126,7 @@ int main(void)
                         GPIO_PIN_4) != 0U;
             if (!mpu_sample(&ay, &az, &gx)) { imu_ok = false; break; }
             (void)gyro_cal_add(&gyro_cal, ay, az, gx, released);
+            watchdog_service();
         }
         if (!gyro_cal_ready(&gyro_cal)) imu_ok = false;
     }
@@ -122,6 +151,7 @@ int main(void)
             balance_controller_reset(&controller);
             motors_off();
             indicator(GPIO_PIN_1);
+            watchdog_service();
             continue;
         }
         if (!imu_ok || !mpu_sample(&ay, &az, &gx)) {
@@ -129,6 +159,7 @@ int main(void)
             (void)balance_safety_update(&safety, NAN, pressed, false);
             motors_off();
             indicator(GPIO_PIN_1);
+            watchdog_service();
             continue;
         }
         angle = tilt_estimator_update(&estimator, ay, az, gx, dt_s);
@@ -136,6 +167,7 @@ int main(void)
             balance_controller_reset(&controller);
             motors_off();
             indicator(safety.mode == BALANCE_FAULT ? GPIO_PIN_1 : GPIO_PIN_2);
+            watchdog_service();
             continue;
         }
         output = balance_controller_update(
@@ -145,9 +177,11 @@ int main(void)
             (void)balance_safety_update(&safety, NAN, pressed, false);
             motors_off();
             indicator(GPIO_PIN_1);
+            watchdog_service();
             continue;
         }
         motor_command(MOTOR_POLARITY * output);
         indicator(MOTOR_OUTPUT_ALLOWED ? GPIO_PIN_3 : GPIO_PIN_2);
+        watchdog_service();
     }
 }
