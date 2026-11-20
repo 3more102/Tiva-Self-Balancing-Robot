@@ -19,6 +19,8 @@
 #include "controller.h"
 #include "diagnostics.h"
 #include "navigation.h"
+#include "ai_navigation.h"
+#include "ai_range_adapter.h"
 
 #define MOTOR_OUTPUT_ALLOWED 0  /* MUST remain disabled before hardware qualification. */
 #define MOTOR_POLARITY (-1.0f)
@@ -38,6 +40,12 @@
 #define MPU6050_CONFIG 0x1AU
 #define MPU6050_SMPLRT_DIV 0x19U
 #define GPIO_MOTOR_PINS (GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7)
+
+/* CCS watch expressions for shadow-mode AI diagnostics. */
+static volatile uint32_t g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+static volatile uint32_t g_ai_safety_override_debug = 0U;
+static volatile float g_ai_confidence_debug = 0.0f;
+static volatile float g_yaw_rate_debug_dps = 0.0f;
 
 static void wait_for_peripheral(uint32_t id)
 {
@@ -96,11 +104,13 @@ static void await_tick(void)
 
 int main(void)
 {
-    float ay, az, gx;
+    float ay, az, gx, gz;
     uint32_t i;
     float dt_s = 0.0f;
     float navigation_ms_remainder = 0.0f;
     uint32_t navigation_now_ms = 0U;
+    uint8_t ai_divider = 0U;
+    float yaw_rate_dps = 0.0f;
     GyroCalibration gyro_cal;
     LoopTiming timing;
     bool imu_ok;
@@ -110,6 +120,9 @@ int main(void)
     Navigation navigation;
     NavigationInput navigation_input = {0};
     NavigationCommand navigation_command;
+    AiNavigationState ai_state;
+    AiSensorFrame ai_frame;
+    AiNavigationCommand ai_command;
 
     SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                    SYSCTL_XTAL_16MHZ); /* 80 MHz */
@@ -132,8 +145,8 @@ int main(void)
             await_tick();
             released = (GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4) &
                         GPIO_PIN_4) != 0U;
-            if (!mpu_sample(&ay, &az, &gx)) { imu_ok = false; break; }
-            (void)gyro_cal_add(&gyro_cal, ay, az, gx, released);
+            if (!mpu_sample(&ay, &az, &gx, &gz)) { imu_ok = false; break; }
+            (void)gyro_cal_add_axes(&gyro_cal, ay, az, gx, gz, released);
             watchdog_service();
         }
         if (!gyro_cal_ready(&gyro_cal)) imu_ok = false;
@@ -147,6 +160,7 @@ int main(void)
     balance_controller_init(&controller, 0.016f, 0.0f, 0.0009f);
 
     navigation_init(&navigation);
+            ai_navigation_init(&ai_state);
     /* Hard-disabled until range acquisition and a separate operator enable
        input have both been implemented and verified. */
     navigation_input.autonomy_enabled = false;
@@ -166,26 +180,31 @@ int main(void)
             (void)balance_safety_update(&safety, NAN, pressed, false);
             balance_controller_reset(&controller);
             navigation_init(&navigation);
+            ai_navigation_init(&ai_state);
             motors_off();
             indicator(GPIO_PIN_1);
             watchdog_service();
             continue;
         }
 
-        if (!imu_ok || !mpu_sample(&ay, &az, &gx)) {
+        if (!imu_ok || !mpu_sample(&ay, &az, &gx, &gz)) {
             imu_ok = false; /* Fatal sensor fault requires a hardware reset. */
             (void)balance_safety_update(&safety, NAN, pressed, false);
             navigation_init(&navigation);
+            ai_navigation_init(&ai_state);
             motors_off();
             indicator(GPIO_PIN_1);
             watchdog_service();
             continue;
         }
 
+        yaw_rate_dps = gz - gyro_cal_yaw_bias_dps(&gyro_cal);
+        g_yaw_rate_debug_dps = yaw_rate_dps;
         angle = tilt_estimator_update(&estimator, ay, az, gx, dt_s);
         if (!balance_safety_update(&safety, angle, pressed, imu_ok)) {
             balance_controller_reset(&controller);
             navigation_init(&navigation);
+            ai_navigation_init(&ai_state);
             motors_off();
             indicator(safety.mode == BALANCE_FAULT ? GPIO_PIN_1 : GPIO_PIN_2);
             watchdog_service();
@@ -212,6 +231,7 @@ int main(void)
             (void)balance_safety_update(&safety, NAN, pressed, false);
             balance_controller_reset(&controller);
             navigation_init(&navigation);
+            ai_navigation_init(&ai_state);
             motors_off();
             indicator(GPIO_PIN_1);
             watchdog_service();
@@ -223,6 +243,26 @@ int main(void)
             navigation_command.travel_permitted ?
                 navigation_command.yaw_bias : 0.0f);
         indicator(MOTOR_OUTPUT_ALLOWED ? GPIO_PIN_3 : GPIO_PIN_2);
+
+        /* Lower-priority 50 Hz AI inference runs after the balance command.
+           It consumes the same range contract as the rule-based policy and
+           remains diagnostic-only: no AI output changes motor PWM or targets. */
+        if (++ai_divider >= 4U) {
+            ai_divider = 0U;
+            if (ai_sensor_frame_from_navigation(&ai_frame, &navigation_input,
+                                                yaw_rate_dps)) {
+                ai_command = ai_navigation_step(&ai_state, &ai_frame,
+                                                navigation_now_ms);
+                g_ai_action_debug = (uint32_t)ai_command.action;
+                g_ai_confidence_debug = ai_command.confidence;
+                g_ai_safety_override_debug =
+                    ai_command.safety_override ? 1U : 0U;
+            } else {
+                g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+                g_ai_confidence_debug = 0.0f;
+                g_ai_safety_override_debug = 1U;
+            }
+        }
         watchdog_service();
     }
 }
