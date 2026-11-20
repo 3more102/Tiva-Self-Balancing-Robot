@@ -15,6 +15,7 @@
 #include "driverlib/pwm.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
+#include "driverlib/watchdog.h"
 #include "controller.h"
 #include "diagnostics.h"
 
@@ -25,6 +26,7 @@
 
 #define CONTROL_HZ 200U
 #define PWM_HZ 20000U
+#define WATCHDOG_TIMEOUT_DIVISOR 20U /* 50 ms first timeout at 80 MHz; reset on second. */
 #define MPU6050_ADDRESS 0x68U
 #define I2C_TIMEOUT_LOOPS 50000U
 #define MPU6050_WHO_AM_I 0x75U
@@ -39,6 +41,29 @@
 static void wait_for_peripheral(uint32_t id)
 {
     while (!SysCtlPeripheralReady(id)) { }
+}
+
+/*
+ * WDT0 is clocked from the system clock. The first 50 ms timeout sets the
+ * raw watchdog interrupt flag; the second timeout resets the MCU unless the
+ * main loop clears that flag. Service only after a control-loop tick so a
+ * stalled timer wait, blocked peripheral call or dead loop cannot pet WDT0.
+ */
+static void watchdog_init(void)
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
+    wait_for_peripheral(SYSCTL_PERIPH_WDOG0);
+    WatchdogReloadSet(WATCHDOG0_BASE,
+                      SysCtlClockGet() / WATCHDOG_TIMEOUT_DIVISOR);
+    WatchdogResetEnable(WATCHDOG0_BASE);
+    WatchdogEnable(WATCHDOG0_BASE);
+}
+
+static void watchdog_service(void)
+{
+    if (WatchdogIntStatus(WATCHDOG0_BASE, false) != 0U) {
+        WatchdogIntClear(WATCHDOG0_BASE);
+    }
 }
 
 #include "imu_backend.h"
@@ -82,6 +107,7 @@ int main(void)
                    SYSCTL_XTAL_16MHZ); /* 80 MHz */
     FPUEnable();
     FPULazyStackingEnable();
+    watchdog_init();
     outputs_init();
     motors_off();
     indicator(GPIO_PIN_2); /* blue: safe/off */
@@ -94,6 +120,7 @@ int main(void)
         for (i = 0U; i < 2000U && !gyro_cal_ready(&gyro_cal); ++i) {
             bool released;
             await_tick();
+            watchdog_service();
             released = (GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4) &
                         GPIO_PIN_4) != 0U;
             if (!mpu_sample(&ay, &az, &gx)) { imu_ok = false; break; }
@@ -112,6 +139,7 @@ int main(void)
         bool pressed;
         float angle, output;
         await_tick();
+        watchdog_service();
         /* Actual elapsed time, not assumed constant Ts. A missed/abnormal
            sample deadline cuts motor output via the software safety gate. */
         const bool on_time = loop_timing_step(
