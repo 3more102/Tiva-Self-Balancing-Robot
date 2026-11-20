@@ -116,7 +116,7 @@ stateDiagram-v2
   FAULT --> DISARMED: valid sensor + release
 ```
 
-**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Watchdog safety](docs/watchdog_safety.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
+**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Watchdog safety](docs/watchdog_safety.md) · [Integration sequence](docs/integration_sequence.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
 
 ## Getting started
 
@@ -214,6 +214,7 @@ Tiva-Self-Balancing-Robot/
 │   ├── optimization_and_design_review.md # implemented vs planned work
 │   ├── verification_plan.md             # before-power-on / bench criteria
 │   ├── watchdog_safety.md                # WDOG0 behavior and target test procedure
+│   ├── integration_sequence.md           # branch dependencies and canonical merge path
 │   ├── range_sensing.md                  # ultrasonic capture design and limits
 │   ├── ai_architecture.md                # TinyML architecture and safety boundary
 │   ├── assignment_checklist.md           # official submission requirements
