@@ -59,9 +59,9 @@ static void test_timeout_when_no_echo_arrives(void)
     RangeArray array;
     range_array_init(&array, 1U);
     assert(range_array_next_trigger(&array, 10U, 10000U) == RANGE_FRONT);
-    range_array_poll(&array, 21999U);
+    range_array_poll(&array, 22999U);
     assert(array.active_sensor == RANGE_FRONT);
-    range_array_poll(&array, 22000U);
+    range_array_poll(&array, 23000U);
     assert(array.active_sensor == RANGE_SENSOR_NONE);
     assert(array.channel[RANGE_FRONT].timeout_count == 1U);
     assert(range_array_next_trigger(&array, 70U, 70000U) == RANGE_LEFT);
