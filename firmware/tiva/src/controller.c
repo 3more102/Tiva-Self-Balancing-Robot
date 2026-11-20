@@ -62,6 +62,11 @@ float balance_controller_update_target(BalanceController *pid,
         !isfinite(pid->kp) || !isfinite(pid->ki) || !isfinite(pid->kd) ||
         !isfinite(pid->integral)) return NAN;
 
+    /* Keep outer-loop travel requests within a small provisional lean. */
+    target_angle_deg = clampf(target_angle_deg,
+                              -BALANCE_MAX_TARGET_ANGLE_DEG,
+                              BALANCE_MAX_TARGET_ANGLE_DEG);
+
     /* Derivative-on-measurement suppresses setpoint derivative kick.
      * Sign and effective motor torque depend on physical installation. */
     const float error = target_angle_deg - angle_deg;
