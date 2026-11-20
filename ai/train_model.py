@@ -180,7 +180,7 @@ def main() -> int:
 
     params, metrics = train(args.samples, args.epochs, args.seed)
     export_header(params, metrics, args.output)
-    metrics_path = args.metrics or args.output.with_suffix(".metrics.json")
+    metrics_path = args.metrics or (Path(__file__).resolve().parent / "model_metrics.json")
     metrics_path.write_text(json.dumps(metrics, indent=2) + "\n",
                             encoding="utf-8")
     print(json.dumps(metrics, indent=2))
