@@ -46,9 +46,9 @@ The gyro offset is estimated only after 200 **consecutive** valid, stationary, u
 
 ## 5. Obstacle navigation status
 
-The portable front/left/right navigation state machine is in `src/navigation.c` and its interface is in `include/navigation.h`. Its host tests are in `../../tests/test_navigation.c`. The range-sensor acquisition driver, physical sensor pin map and main-loop integration are not present yet. See [obstacle avoidance design](../../docs/obstacle_avoidance.md).
+The portable front/left/right navigation state machine is in `src/navigation.c` and its interface is in `include/navigation.h`. Its host tests are in `../../tests/test_navigation.c`. The range-sensor acquisition driver, physical sensor pin map and separate autonomy-enable input are not present yet; the main-loop call currently receives invalid placeholder readings. See [obstacle avoidance design](../../docs/obstacle_avoidance.md).
 
-## 5. Important limits
+## 6. Important limits
 
 - Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing, CPU hangs and counter overflow/aliasing after ~53.7 s remain limitations.
 - I2C transaction handling has a software-bounded busy poll; timeouts, bus recovery, transaction sequencing and maximum duration still require real-target tests.
