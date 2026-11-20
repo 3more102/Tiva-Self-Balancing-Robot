@@ -15,7 +15,7 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 ## 2. Building the draft
 
 1. Import/create a CCS target project for the exact TM4C123GH6PM. Verify the official example builds and flashes first.
-2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, `src/diagnostics.c`, and `src/navigation.c`; do **not** compile helper headers as separate units. The IMU and motor backend headers are locally included by `main.c`. The navigation policy is portable C but is not yet called by `main.c`.
+2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, `src/diagnostics.c`, and `src/navigation.c`; do **not** compile helper headers as separate units. The IMU and motor backend headers are locally included by `main.c`. The navigation policy is portable C and is called by `main.c`; autonomy remains disabled until range acquisition and a separate operator enable are implemented.
 3. Add `include` and the TivaWare root to include directories, and link the correct version of the TivaWare driverlib.
 4. Enable appropriate Cortex-M4F FPU ABI/compiler settings and `math` routines (`atan2f`, `fabsf`, `isfinite`, `NAN`).
 5. **Do not alter `MOTOR_OUTPUT_ALLOWED 0`** during first sensor/logic tests. Verify STBY remains low.
