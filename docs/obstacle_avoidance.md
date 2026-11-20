@@ -34,6 +34,7 @@ The navigation interface is independent of TivaWare. The sensor backend supplies
 | Front stop distance | 350 mm | Stop forward travel at or below this distance |
 | Front clear distance | 500 mm | Require this distance for re-entry to cruise |
 | Side clear distance | 500 mm | A side must meet this distance before a turn |
+| Maximum accepted range | 4000 mm | Reject zero and out-of-range/timeout sentinel values |
 | Front sample maximum age | 250 ms | Stale front readings stop travel |
 | Side sample maximum age | 250 ms | Side clearance must remain fresh during a turn |
 | Turn duration | 350 ms | Provisional open-loop turn duration |
@@ -85,4 +86,4 @@ gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
 /tmp/test_navigation
 ```
 
-The tests cover autonomy disable, invalid/stale front data, three-sample clear confirmation, turn-side selection, timed turn completion, post-turn re-verification, holding when neither side is clear, uint32 timestamp rollover, stale side-sample rejection and aborting a timed turn when front data becomes stale. These host tests do not verify TivaWare peripherals, sensor wiring, physical stopping distance or real obstacle avoidance.
+The tests cover autonomy disable, invalid/stale front data, out-of-range timeout sentinels, three-sample clear confirmation, turn-side selection, timed turn completion, post-turn re-verification, holding when neither side is clear, uint32 timestamp rollover, stale side-sample rejection and aborting a turn when the front or selected-side reading becomes stale. These host tests do not verify TivaWare peripherals, sensor wiring, physical stopping distance or real obstacle avoidance.
