@@ -39,8 +39,11 @@ shadow-mode firmware integration.
 
 The portable range stack is not yet wired into `main.c` through a TivaWare
 hardware backend. `NavigationInput` starts with invalid range readings and
-`autonomy_enabled=false`. Consequently, the integrated AI currently returns
-STOP and does not evaluate live sensor data. This is intentional fail-safe
+`autonomy_enabled=false`. The AI frame's `inference_enabled` gate follows the
+balance-armed state and is independent of the rule-based autonomy gate, so the
+model can evaluate shadow inputs without authorizing travel. Current front
+range data is invalid, however, so the AI safety shield returns STOP and no
+live sensor evaluation is yet demonstrated. This is intentional fail-safe
 behavior, not a completed autonomous robot.
 
 The existing optional GPIO-interrupt range prototype on the separate TinyML
