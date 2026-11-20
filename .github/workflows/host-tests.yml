@@ -49,6 +49,28 @@ jobs:
             firmware/tiva/src/navigation.c tests/test_navigation.c \
             -lm -o /tmp/test_navigation
           /tmp/test_navigation
+      - name: Compile and run asynchronous range-sensor capture tests
+        run: |
+          gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
+            -Ifirmware/tiva/include \
+            firmware/tiva/src/range_sensing.c tests/test_range_sensing.c \
+            -o /tmp/test_range_sensing
+          /tmp/test_range_sensing
+      - name: Range-sensor capture undefined-behavior sanitizer
+        run: |
+          gcc -std=c11 -O1 -g -Wall -Wextra -Werror -pedantic \
+            -fsanitize=undefined -fno-sanitize-recover=all \
+            -Ifirmware/tiva/include \
+            firmware/tiva/src/range_sensing.c tests/test_range_sensing.c \
+            -o /tmp/test_range_sensing_ubsan
+          /tmp/test_range_sensing_ubsan
+      - name: Compile and run AI sensor-frame adapter tests
+        run: |
+          gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
+            -Ifirmware/tiva/include \
+            firmware/tiva/src/ai_sensor_adapter.c tests/test_ai_sensor_adapter.c \
+            -lm -o /tmp/test_ai_sensor_adapter
+          /tmp/test_ai_sensor_adapter
       - name: Compile and run TinyML inference tests
         run: |
           gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
