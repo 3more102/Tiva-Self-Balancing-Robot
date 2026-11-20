@@ -195,6 +195,137 @@ static void test_autonomy_disable_cancels_motion(void)
     assert(command.pitch_target_deg == 0.0f && command.yaw_bias == 0.0f);
 }
 
+static void test_retry_uses_opposite_clear_side_only(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+    uint32_t now = 10U;
+    navigation_init(&nav);
+    (void)feed_clearance(&nav, &input, &now);
+
+    input.front_mm = 200U;
+    input.front_sample_ms = 200U;
+    input.left_mm = 700U;
+    input.right_mm = 1100U;
+    input.left_sample_ms = 200U;
+    input.right_sample_ms = 200U;
+    (void)navigation_update(&nav, &input, 200U);
+    input.front_sample_ms = 320U;
+    input.left_sample_ms = 320U;
+    input.right_sample_ms = 320U;
+    command = navigation_update(&nav, &input, 320U);
+    assert(command.mode == NAV_TURN_RIGHT);
+
+    input.front_sample_ms = 670U;
+    input.left_sample_ms = 670U;
+    input.right_sample_ms = 670U;
+    command = navigation_update(&nav, &input, 670U);
+    assert(command.mode == NAV_HOLD);
+
+    input.front_sample_ms = 800U;
+    input.left_mm = 900U;
+    input.right_mm = 300U;
+    input.left_sample_ms = 800U;
+    input.right_sample_ms = 800U;
+    command = navigation_update(&nav, &input, 800U);
+    assert(command.mode == NAV_TURN_LEFT);
+    assert(command.yaw_bias < 0.0f);
+}
+
+static void test_retry_refuses_original_side_if_alternate_is_blocked(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+    uint32_t now = 10U;
+    navigation_init(&nav);
+    (void)feed_clearance(&nav, &input, &now);
+
+    input.front_mm = 200U;
+    input.front_sample_ms = 200U;
+    input.left_mm = 700U;
+    input.right_mm = 1100U;
+    input.left_sample_ms = 200U;
+    input.right_sample_ms = 200U;
+    (void)navigation_update(&nav, &input, 200U);
+    input.front_sample_ms = 320U;
+    input.left_sample_ms = 320U;
+    input.right_sample_ms = 320U;
+    command = navigation_update(&nav, &input, 320U);
+    assert(command.mode == NAV_TURN_RIGHT);
+
+    input.front_sample_ms = 670U;
+    input.left_sample_ms = 670U;
+    input.right_sample_ms = 670U;
+    command = navigation_update(&nav, &input, 670U);
+    assert(command.mode == NAV_HOLD);
+
+    input.front_sample_ms = 800U;
+    input.left_mm = 300U;
+    input.right_mm = 1100U;
+    input.left_sample_ms = 800U;
+    input.right_sample_ms = 800U;
+    command = navigation_update(&nav, &input, 800U);
+    assert(command.mode == NAV_HOLD);
+    assert(!command.travel_permitted);
+    assert(command.yaw_bias == 0.0f);
+}
+
+static void test_stale_side_data_cannot_authorize_turn(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+    uint32_t now = 10U;
+    navigation_init(&nav);
+    (void)feed_clearance(&nav, &input, &now);
+
+    input.front_mm = 200U;
+    input.front_sample_ms = 1000U;
+    input.left_mm = 900U;
+    input.right_mm = 1100U;
+    input.left_sample_ms = 0U;
+    input.right_sample_ms = 0U;
+    command = navigation_update(&nav, &input, 1000U);
+    assert(command.mode == NAV_HOLD);
+
+    input.front_sample_ms = 1120U;
+    command = navigation_update(&nav, &input, 1120U);
+    assert(command.mode == NAV_HOLD);
+    assert(!command.travel_permitted);
+    assert(command.yaw_bias == 0.0f);
+}
+
+static void test_future_timestamp_is_rejected(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+    navigation_init(&nav);
+    input.front_sample_ms = 101U;
+    command = navigation_update(&nav, &input, 100U);
+    assert(command.mode == NAV_HOLD);
+    assert(!command.travel_permitted);
+}
+
+static void test_timestamp_wraparound_and_lean_ramp(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+    uint32_t now = UINT32_MAX - 100U;
+    navigation_init(&nav);
+    command = feed_clearance(&nav, &input, &now);
+    assert(command.mode == NAV_CRUISE);
+
+    input.front_mm = 425U;
+    input.front_sample_ms = 200U;
+    command = navigation_update(&nav, &input, 200U);
+    assert(command.mode == NAV_CRUISE);
+    assert(fabsf(command.pitch_target_deg - 0.75f) < 0.001f);
+}
+
 int main(void)
 {
     test_disabled_and_invalid_fail_safe();
@@ -203,6 +334,11 @@ int main(void)
     test_obstacle_turns_toward_more_clear_side_then_reverify();
     test_no_verified_side_means_no_turn();
     test_autonomy_disable_cancels_motion();
+    test_retry_uses_opposite_clear_side_only();
+    test_retry_refuses_original_side_if_alternate_is_blocked();
+    test_stale_side_data_cannot_authorize_turn();
+    test_future_timestamp_is_rejected();
+    test_timestamp_wraparound_and_lean_ramp();
     puts("PASS: obstacle navigation fail-safe, freshness, turn and re-verification tests");
     return 0;
 }
