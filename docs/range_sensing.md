@@ -50,7 +50,7 @@ Only one ultrasonic channel is active at a time to reduce cross-talk.
 |---|---:|---|
 | Inter-ping gap | 60 ms | Minimum time between any two sensor triggers |
 | Three-sensor refresh cycle | about 180 ms | Nominal front/left/right round-robin period |
-| Echo timeout | 12,000 µs | Maximum wait for a complete pulse |
+| Echo timeout | 13,000 µs | Wait limit, with 1 ms margin above the accepted pulse maximum |
 | Minimum accepted pulse | 100 µs | Reject implausibly short pulses |
 | Maximum accepted pulse | 12,000 µs | Reject late/overlong pulses |
 | Maximum model distance | 2,000 mm | Clamp output to the model's supported range |
