@@ -33,6 +33,7 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 | Status | PF1 (red), PF2 (blue), PF3 (green) | Fault, disabled, enabled; unverified target |
 | Timer0A | No pin | 200 Hz desired periodic sample wake-up |
 | Timer1A | No pin | 32-bit free-running downcounter used to calculate elapsed control dt |
+| WDOG0 | No pin | System-clock watchdog; 50 ms first timeout, reset on second uncleared timeout; serviced by foreground code after a completed sample |
 
 Before using PWM, inspect the board's PB6↔PD0 and PB7↔PD1 hard links, board revision and pin mux for conflicts.
 
@@ -48,11 +49,15 @@ The gyro offset is estimated only after 200 **consecutive** valid, stationary, u
 
 The portable front/left/right navigation state machine is in `src/navigation.c` and its interface is in `include/navigation.h`. Its host tests are in `../../tests/test_navigation.c`. The range-sensor acquisition driver, physical sensor pin map and main-loop integration are not present yet. See [obstacle avoidance design](../../docs/obstacle_avoidance.md).
 
-## 5. Important limits
+## 6. Watchdog supervision
+
+WDOG0 is configured from the 80 MHz system clock with a 50 ms first timeout and reset enabled on the second timeout if the first interrupt flag is not cleared. The foreground calls `watchdog_service()` after completed calibration samples and control-loop paths; a stalled wait, IMU transaction or control path therefore stops servicing it. `WatchdogStallEnable()` pauses WDOG0 while the debugger halts the CPU. This is source-level supervision only: the target has not been compiled or tested, and WDOG0 does not protect against failure of the system clock. WDOG1 (PIOSC clock) or an external supervisor remains future work. See [watchdog reset and motor-output containment](../../docs/watchdog_safety.md).
+
+## 7. Important limits
 
 - Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing, CPU hangs and counter overflow/aliasing after ~53.7 s remain limitations.
 - I2C transaction handling has a software-bounded busy poll; timeouts, bus recovery, transaction sequencing and maximum duration still require real-target tests.
-- No wheel encoders, independent watchdog, UART logger, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist.
+- No wheel encoders, independent PIOSC-clocked watchdog (WDOG1), UART logger, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist. WDOG0 is integrated in source but its target behavior remains unverified.
 - Current MATLAB LQR is an illustrative comparison, not deployed code. Control gains are placeholders.
 - Software output gating does not substitute for power isolation and mechanical restraint.
 
