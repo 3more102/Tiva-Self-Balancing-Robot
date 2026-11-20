@@ -9,33 +9,42 @@ static bool time_reached(uint32_t now, uint32_t deadline)
     return (uint32_t)(now - deadline) < 0x80000000U;
 }
 
+static uint32_t echo_timeout_ticks(const RangeArray *array)
+{
+    return RANGE_ECHO_TIMEOUT_US * array->ticks_per_us;
+}
+
 static void clear_active(RangeArray *array, RangeChannel *channel)
 {
     channel->state = RANGE_CAPTURE_IDLE;
-    channel->rise_us = 0U;
-    channel->deadline_us = 0U;
+    channel->rise_ticks = 0U;
+    channel->deadline_ticks = 0U;
     array->active_sensor = RANGE_SENSOR_NONE;
 }
 
-void range_array_init(RangeArray *array)
+void range_array_init(RangeArray *array, uint32_t ticks_per_us)
 {
     uint32_t i;
     if (array == NULL) return;
     memset(array, 0, sizeof(*array));
+    array->ticks_per_us =
+        (ticks_per_us == 0U ||
+         ticks_per_us > (0x7FFFFFFFU / RANGE_ECHO_TIMEOUT_US)) ?
+        1U : ticks_per_us;
     for (i = 0U; i < RANGE_SENSOR_COUNT; ++i)
         array->channel[i].state = RANGE_CAPTURE_IDLE;
     array->next_sensor = (uint8_t)RANGE_FRONT;
     array->active_sensor = RANGE_SENSOR_NONE;
 }
 
-void range_array_poll(RangeArray *array, uint32_t now_us)
+void range_array_poll(RangeArray *array, uint32_t now_ticks)
 {
     RangeChannel *channel;
     if (array == NULL || array->active_sensor >= RANGE_SENSOR_COUNT) return;
 
     channel = &array->channel[array->active_sensor];
     if (channel->state != RANGE_CAPTURE_IDLE &&
-        time_reached(now_us, channel->deadline_us)) {
+        time_reached(now_ticks, channel->deadline_ticks)) {
         ++channel->timeout_count;
         clear_active(array, channel);
     }
@@ -43,13 +52,13 @@ void range_array_poll(RangeArray *array, uint32_t now_us)
 
 uint8_t range_array_next_trigger(RangeArray *array,
                                  uint32_t now_ms,
-                                 uint32_t now_us)
+                                 uint32_t now_ticks)
 {
     uint8_t sensor;
     RangeChannel *channel;
 
     if (array == NULL) return RANGE_SENSOR_NONE;
-    range_array_poll(array, now_us);
+    range_array_poll(array, now_ticks);
 
     if (array->active_sensor != RANGE_SENSOR_NONE) return RANGE_SENSOR_NONE;
     if (array->has_triggered &&
@@ -61,8 +70,8 @@ uint8_t range_array_next_trigger(RangeArray *array,
     sensor = array->next_sensor;
     channel = &array->channel[sensor];
     channel->state = RANGE_CAPTURE_WAIT_RISE;
-    channel->rise_us = 0U;
-    channel->deadline_us = now_us + RANGE_ECHO_TIMEOUT_US;
+    channel->rise_ticks = 0U;
+    channel->deadline_ticks = now_ticks + echo_timeout_ticks(array);
     array->active_sensor = sensor;
     array->last_trigger_ms = now_ms;
     array->has_triggered = true;
@@ -84,12 +93,14 @@ void range_array_cancel_trigger(RangeArray *array, uint8_t sensor)
 }
 
 void range_array_echo_edge(RangeArray *array, uint8_t sensor,
-                           bool echo_high, uint32_t timestamp_us,
+                           bool echo_high, uint32_t timestamp_ticks,
                            uint32_t now_ms)
 {
     RangeChannel *channel;
+    uint32_t pulse_ticks;
     uint32_t pulse_us;
     uint32_t distance_mm;
+    uint32_t timeout_ticks;
 
     if (array == NULL || sensor >= RANGE_SENSOR_COUNT ||
         array->active_sensor != sensor) return;
@@ -97,7 +108,8 @@ void range_array_echo_edge(RangeArray *array, uint8_t sensor,
     channel = &array->channel[sensor];
     if (channel->state == RANGE_CAPTURE_IDLE) return;
 
-    if (time_reached(timestamp_us, channel->deadline_us)) {
+    timeout_ticks = echo_timeout_ticks(array);
+    if (time_reached(timestamp_ticks, channel->deadline_ticks)) {
         ++channel->timeout_count;
         clear_active(array, channel);
         return;
@@ -105,8 +117,8 @@ void range_array_echo_edge(RangeArray *array, uint8_t sensor,
 
     if (echo_high) {
         if (channel->state == RANGE_CAPTURE_WAIT_RISE) {
-            channel->rise_us = timestamp_us;
-            channel->deadline_us = timestamp_us + RANGE_ECHO_TIMEOUT_US;
+            channel->rise_ticks = timestamp_ticks;
+            channel->deadline_ticks = timestamp_ticks + timeout_ticks;
             channel->state = RANGE_CAPTURE_WAIT_FALL;
         }
         return;
@@ -114,12 +126,16 @@ void range_array_echo_edge(RangeArray *array, uint8_t sensor,
 
     if (channel->state != RANGE_CAPTURE_WAIT_FALL) return;
 
-    pulse_us = (uint32_t)(timestamp_us - channel->rise_us);
-    if (pulse_us < RANGE_ECHO_MIN_US || pulse_us > RANGE_ECHO_MAX_US) {
+    pulse_ticks = (uint32_t)(timestamp_ticks - channel->rise_ticks);
+    if (pulse_ticks < RANGE_ECHO_MIN_US * array->ticks_per_us ||
+        pulse_ticks > RANGE_ECHO_MAX_US * array->ticks_per_us) {
         ++channel->invalid_pulse_count;
         clear_active(array, channel);
         return;
     }
+
+    pulse_us = (pulse_ticks + (array->ticks_per_us / 2U)) /
+               array->ticks_per_us;
 
     /* Speed of sound ~= 343 m/s at 20 C; echo is a round trip.
      * mm = pulse_us * 343 / 2000. Round to nearest mm and cap to model range. */
