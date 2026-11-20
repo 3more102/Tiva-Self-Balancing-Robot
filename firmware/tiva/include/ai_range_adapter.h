@@ -7,10 +7,12 @@
 #include "navigation.h"
 
 /* Adapt the canonical rule-based navigation input to the AI shadow model.
- * Autonomy enable remains an independent input; invalid ranges stay invalid.
- * Yaw rate is supplied separately from the calibrated IMU path. */
+ * The inference-enable gate is independent of NavigationInput.autonomy_enabled;
+ * this allows shadow evaluation while actuator autonomy remains disabled.
+ * Invalid ranges stay invalid. Yaw rate is supplied by calibrated IMU code. */
 bool ai_sensor_frame_from_navigation(AiSensorFrame *frame,
                                      const NavigationInput *input,
+                                     bool inference_enabled,
                                      float yaw_rate_dps);
 
 #endif
