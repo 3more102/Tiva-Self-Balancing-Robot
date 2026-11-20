@@ -36,6 +36,7 @@
 | T-07 | Physical switch/debounce and safe arming | No surprise motor activation, including reset while held | **Not tested** |
 | T-08 | Sensor unplug, transient NACK, CPU fault/brownout | Measured safe motor cutoff; independent hardware containment | **Not tested** |
 | T-09 | Motor rotation/polarity with suspended wheels, qualified supply | Each channel matches signed command, no over-current | **Not tested** |
+| T-10 | WDOG0 fault-injection test with motor battery disconnected | A deliberate foreground stall causes a reset after the second timeout; STBY remains low through reset | **Not tested** |
 | R-01 | Restrained moderate tilt recovery | No positive feedback runaway; documented response | **Not tested** |
 | R-02 | Repeated balance runs | Actual logs/metrics linked to measured datasets | **Not tested** |
 
@@ -43,7 +44,7 @@
 
 1. Confirm mechanical restraint, physical motor-battery disconnect, fuse, safe wiring and suitable driver rating.
 2. Keep the motor driver supply isolated when first flashing and testing sensor, switch, timers and LEDs.
-3. Measure GPIO with a scope/meter **before** connecting the driver supply. Verify STBY low at startup and reset.
+3. Measure GPIO with a scope/meter **before** connecting the driver supply. Verify STBY remains low at startup and reset; confirm the actual TB6612FNG module's internal STBY pull-down or add an external one if absent/uncertain.
 4. Test motor direction individually at very low duty with wheels raised; record axis/sign truth table.
 5. Select conservative controller gains based on a measured model. Do not rely on constants shown as initial placeholders.
 6. Only proceed to restrained balancing after hardware cutoff works independently of the MCU software.
@@ -55,6 +56,7 @@
 - [ ] Current limiting, supply brownout and stall current verification
 - [ ] Reproducible CCS build (compiler/TivaWare version, startup and linker files)
 - [ ] Real waveform captures for MCU GPIO, I2C, PWM and STBY
+- [ ] WDOG0 deliberate-stall reset capture and STBY-low verification
 - [ ] Raw timing, safety and sensor captures (software calculations are not measured timing profiles)
 - [ ] Recorded measured plant parameters
 - [ ] Control gain derivation and validation on real robot
