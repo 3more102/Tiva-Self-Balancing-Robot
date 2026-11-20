@@ -29,7 +29,7 @@
 | R-01 | Range echo pulse conversion and 32-bit timer rollover | Valid pulse converts to bounded millimetres; wrap-safe capture | Automated host test; target capture pending |
 | R-02 | Missing echo, stuck-high echo and invalid pulse | Timeout/reject without fabricating or overwriting a valid reading | Automated host test; target capture pending |
 | R-03 | Three-sensor round-robin and freshness | 60 ms inter-ping gap; stale readings marked invalid | Automated host test; acoustic cross-talk pending |
-| R-04 | AI range-frame adapter | Front/left/right validity, timestamps and yaw rate map correctly | Automated host test; live sensor integration pending |
+| R-04 | AI range-frame adapter | Front/left/right validity, timestamps and yaw rate map correctly | Automated host test; physical sensor validation pending |
 | D-01 | Check relative Markdown links and code fences | No broken links, balanced fences | Automated |
 | T-01 | Compile all embedded source with CCS for TM4C123 | No target compiler/link errors | **Not tested** |
 | T-02 | Inspect GPIO levels / power without motors connected | PA5 LOW, safe pin voltages | **Not tested** |
@@ -41,6 +41,7 @@
 | T-08 | Sensor unplug, transient NACK, CPU fault/brownout | Measured safe motor cutoff; independent hardware containment | **Not tested** |
 | T-09 | Motor rotation/polarity with suspended wheels, qualified supply | Each channel matches signed command, no over-current | **Not tested** |
 | T-10 | Optional range backend: verify 10 µs trigger, Echo level, both-edge timing, three-sensor cross-talk and measured distance | Scope traces and known-distance repeatability; backend remains disabled until qualified | **Not tested** |
+| T-11 | Measure 200 Hz balance-loop timing with 50 Hz TinyML shadow inference enabled | Control dt and execution time stay within qualified deadline margins | **Not tested** |
 | R-01 | Restrained moderate tilt recovery | No positive feedback runaway; documented response | **Not tested** |
 | R-02 | Repeated balance runs | Actual logs/metrics linked to measured datasets | **Not tested** |
 
