@@ -17,6 +17,8 @@
 #include "driverlib/timer.h"
 #include "controller.h"
 #include "diagnostics.h"
+#include "ai_navigation.h"
+#include "ai_sensor_adapter.h"
 
 #define MOTOR_OUTPUT_ALLOWED 0  /* MUST remain disabled before hardware qualification. */
 #define MOTOR_POLARITY (-1.0f)
@@ -43,6 +45,13 @@ static void wait_for_peripheral(uint32_t id)
 
 #include "imu_backend.h"
 #include "motor_backend.h"
+#include "range_backend.h"
+
+/* CCS watch expressions for shadow-mode navigation diagnostics. */
+static volatile uint32_t g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+static volatile uint32_t g_ai_safety_override_debug = 0U;
+static volatile float g_ai_confidence_debug = 0.0f;
+static volatile float g_yaw_rate_debug_dps = 0.0f;
 
 static void control_timer_init(void)
 {
@@ -78,6 +87,12 @@ int main(void)
     BalanceSafety safety;
     TiltEstimator estimator;
     BalanceController controller;
+    AiNavigationState ai_state;
+    AiSensorFrame ai_frame;
+    AiNavigationCommand ai_command;
+    RangeSnapshot range_snapshot;
+    uint32_t now_ms = 0U;
+    uint8_t ai_divider = 0U;
     SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                    SYSCTL_XTAL_16MHZ); /* 80 MHz */
     FPUEnable();
@@ -87,6 +102,8 @@ int main(void)
     indicator(GPIO_PIN_2); /* blue: safe/off */
     imu_ok = imu_init();
     control_timer_init();
+    range_backend_init(SysCtlClockGet());
+    ai_navigation_init(&ai_state);
     gyro_cal_init(&gyro_cal);
     if (imu_ok) {
         /* Calibration requires 200 consecutive, upright, still samples
@@ -118,6 +135,8 @@ int main(void)
             &timing, TimerValueGet(TIMER1_BASE, TIMER_A), &dt_s);
         pressed = (GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4) & GPIO_PIN_4) == 0U;
         if (!on_time) {
+            g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+            g_ai_safety_override_debug = 1U;
             (void)balance_safety_update(&safety, NAN, pressed, false);
             balance_controller_reset(&controller);
             motors_off();
@@ -131,12 +150,42 @@ int main(void)
             indicator(GPIO_PIN_1);
             continue;
         }
+        /* Range scheduling is non-blocking. Timer1A raw ticks timestamp echo
+           edges; now_ms is advanced from the measured 200 Hz loop interval. */
+        now_ms += (uint32_t)(dt_s * 1000.0f + 0.5f);
+        range_backend_service(now_ms);
+        g_yaw_rate_debug_dps = gz - gyro_cal_yaw_bias_dps(&gyro_cal);
+
         angle = tilt_estimator_update(&estimator, ay, az, gx, dt_s);
-        if (!balance_safety_update(&safety, angle, pressed, imu_ok)) {
+        {
+            const bool balance_armed =
+                balance_safety_update(&safety, angle, pressed, imu_ok);
+
+            /* Run the navigation model at 50 Hz in shadow mode. It reports
+               decisions to the debugger but cannot change pitch or PWM. */
+            if (++ai_divider >= 4U) {
+                ai_divider = 0U;
+                range_backend_snapshot(now_ms, &range_snapshot);
+                if (ai_sensor_frame_from_ranges(
+                        &ai_frame, &range_snapshot, balance_armed,
+                        g_yaw_rate_debug_dps)) {
+                    ai_command = ai_navigation_step(&ai_state, &ai_frame, now_ms);
+                    g_ai_action_debug = (uint32_t)ai_command.action;
+                    g_ai_confidence_debug = ai_command.confidence;
+                    g_ai_safety_override_debug =
+                        ai_command.safety_override ? 1U : 0U;
+                } else {
+                    g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+                    g_ai_safety_override_debug = 1U;
+                }
+            }
+
+            if (!balance_armed) {
             balance_controller_reset(&controller);
             motors_off();
             indicator(safety.mode == BALANCE_FAULT ? GPIO_PIN_1 : GPIO_PIN_2);
             continue;
+            }
         }
         output = balance_controller_update(
             &controller, angle, gx - estimator.gyro_bias_dps,
