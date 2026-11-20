@@ -13,8 +13,8 @@ static void test_field_mapping(void)
     };
     AiSensorFrame frame;
 
-    assert(ai_sensor_frame_from_navigation(&frame, &input, -12.5f));
-    assert(frame.autonomy_enabled);
+    assert(ai_sensor_frame_from_navigation(&frame, &input, true, -12.5f));
+    assert(frame.inference_enabled);
     assert(frame.front_valid && frame.left_valid && frame.right_valid);
     assert(frame.front_mm == 840U);
     assert(frame.left_mm == 620U);
@@ -34,8 +34,8 @@ static void test_invalid_ranges_stay_invalid_and_autonomy_is_independent(void)
     };
     AiSensorFrame frame;
 
-    assert(ai_sensor_frame_from_navigation(&frame, &input, 0.0f));
-    assert(!frame.autonomy_enabled);
+    assert(ai_sensor_frame_from_navigation(&frame, &input, true, 0.0f));
+    assert(frame.inference_enabled);
     assert(frame.front_valid && !frame.left_valid && frame.right_valid);
     assert(frame.front_mm == 500U);
     assert(frame.left_mm == 0U);
@@ -52,8 +52,8 @@ static void test_null_arguments(void)
 {
     NavigationInput input = {0};
     AiSensorFrame frame;
-    assert(!ai_sensor_frame_from_navigation(NULL, &input, 0.0f));
-    assert(!ai_sensor_frame_from_navigation(&frame, NULL, 0.0f));
+    assert(!ai_sensor_frame_from_navigation(NULL, &input, true, 0.0f));
+    assert(!ai_sensor_frame_from_navigation(&frame, NULL, true, 0.0f));
 }
 
 int main(void)
