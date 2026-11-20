@@ -172,6 +172,7 @@ Tiva-Self-Balancing-Robot/
 │   ├── include/range_sensing.h           # asynchronous echo capture API
 │   ├── src/controller.c                  # estimator, PID and safety machine
 │   ├── src/diagnostics.c                 # dual-axis gyro calibration / timing
+│   ├── src/imu_decode.c                  # signed MPU6050 axis decoding
 │   ├── src/navigation.c                  # rule-based obstacle policy
 │   ├── src/ai_inference.c                 # native C neural-network inference
 │   ├── src/ai_navigation.c                # AI decisions + safety shield
@@ -208,6 +209,7 @@ Tiva-Self-Balancing-Robot/
 │       └── STAGE3_final_report.md
 ├── tests/test_controller.c               # host-side estimator/PID/safety tests
 ├── tests/test_diagnostics.c              # dual-axis calibration & timer tests
+├── tests/test_imu_decode_axes.c          # MPU6050 axis/scaling decoder tests
 ├── tests/test_range_sensing.c             # asynchronous echo capture tests
 ├── tests/test_ai_sensor_adapter.c         # range-to-AI frame mapping tests
 ├── tests/test_ai_range_integration.c      # range capture to AI decision tests
