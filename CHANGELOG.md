@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.5.0 — 2026-11-20 — GyroGuard TinyML integration candidate
+
+- Port the native-C 5-12-8-5 TinyML model, synthetic training pipeline,
+  exported weights and host tests onto the modular range-acquisition branch.
+- Add `ai_range_adapter.c` to map the canonical `NavigationInput` contract
+  into the AI sensor frame without duplicating the range-capture stack.
+- Integrate 50 Hz AI shadow inference after the 200 Hz balance command and
+  expose action, confidence, safety override and calibrated yaw-Z rate as
+  CCS watch variables. AI has no actuator authority.
+- Extend stationary calibration to estimate pitch-X and yaw-Z gyro biases.
+- Add CI for MPU6050 axis decoding, AI adapter tests, TinyML inference,
+  classification metrics and a training smoke test.
+- Add AI architecture and branch integration documentation.
+- **Limitations:** range acquisition is not wired into `main.c`; range inputs
+  remain invalid and operator autonomy is disabled. The AI currently returns
+  STOP and has not evaluated live sensor data. No TivaWare target build,
+  physical balancing or physical obstacle-avoidance result is claimed.
+
+
 ## 0.4.0 — 2026-11-20 — Obstacle-avoidance software foundation
 
 - Add a portable front/left/right range-navigation policy with stale-sample checks, verified-side selection, bounded timed turns and post-turn clearance confirmation.
