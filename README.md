@@ -165,9 +165,18 @@ Tiva-Self-Balancing-Robot/
 ├── README.md
 ├── firmware/tiva/
 │   ├── include/controller.h              # control/safety interfaces
-│   ├── include/diagnostics.h             # calibration + timing interfaces
+│   ├── include/diagnostics.h             # pitch/yaw gyro calibration + timing
+│   ├── include/navigation.h              # portable obstacle policy
+│   ├── include/ai_navigation.h           # TinyML decision interface
+│   ├── include/ai_sensor_adapter.h       # range-to-AI frame adapter
+│   ├── include/range_sensing.h           # asynchronous echo capture API
 │   ├── src/controller.c                  # estimator, PID and safety machine
-│   ├── src/diagnostics.c                 # stationary gyro calibration / timing
+│   ├── src/diagnostics.c                 # dual-axis gyro calibration / timing
+│   ├── src/navigation.c                  # rule-based obstacle policy
+│   ├── src/ai_inference.c                 # native C neural-network inference
+│   ├── src/ai_navigation.c                # AI decisions + safety shield
+│   ├── src/ai_sensor_adapter.c            # map range snapshot into AI inputs
+│   ├── src/range_sensing.c                # pulse capture, scheduler, freshness
 │   ├── src/main.c                        # TivaWare 200 Hz application
 │   ├── src/imu_backend.h                 # MPU6050 I2C functions
 │   ├── src/motor_backend.h               # TB6612FNG direction / PWM / STBY
@@ -190,14 +199,20 @@ Tiva-Self-Balancing-Robot/
 │   ├── component_selection.md            # motor/driver/supply worksheet
 │   ├── optimization_and_design_review.md # implemented vs planned work
 │   ├── verification_plan.md             # before-power-on / bench criteria
+│   ├── range_sensing.md                  # ultrasonic capture design and limits
+│   ├── ai_architecture.md                # TinyML architecture and safety boundary
 │   ├── assignment_checklist.md           # official submission requirements
 │   └── reports/
 │       ├── STAGE1_architecture_report.md
 │       ├── STAGE2_modeling_report.md
 │       └── STAGE3_final_report.md
 ├── tests/test_controller.c               # host-side estimator/PID/safety tests
-├── tests/test_diagnostics.c              # calibration & timer-wrap tests
+├── tests/test_diagnostics.c              # dual-axis calibration & timer tests
+├── tests/test_range_sensing.c             # asynchronous echo capture tests
+├── tests/test_ai_sensor_adapter.c         # range-to-AI frame mapping tests
+├── tests/test_ai_range_integration.c      # range capture to AI decision tests
 ├── tests/test_simulation.py              # theoretical model assertions
+├── ai/                                    # synthetic TinyML training/export pipeline
 ├── .github/workflows/host-tests.yml
 └── tools/publish_github.ps1
 ```
