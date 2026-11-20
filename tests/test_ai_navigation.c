@@ -37,6 +37,8 @@ static void test_model_returns_valid_probabilities(void)
     }
     assert(fabsf(sum - 1.0f) < 0.001f);
     assert(!ai_model_predict(NULL, probabilities));
+    { float invalid[5] = {0.0f, 0.0f, 0.0f, 0.0f, NAN};
+      assert(!ai_model_predict(invalid, probabilities)); }
 }
 
 static void test_open_path_selects_forward(void)
@@ -150,6 +152,66 @@ static void test_disabled_autonomy_stops(void)
     assert(!command.safety_override);
 }
 
+
+static void test_invalid_yaw_forces_stop(void)
+{
+    AiNavigationState state;
+    AiSensorFrame frame = clear_frame();
+    AiNavigationCommand command;
+    frame.yaw_rate_dps = NAN;
+    ai_navigation_init(&state);
+    command = ai_navigation_step(&state, &frame, 100U);
+    assert(command.action == AI_ACTION_STOP);
+    assert(command.safety_override);
+}
+
+static uint32_t next_random(uint32_t *state)
+{
+    *state = (*state * 1664525U) + 1013904223U;
+    return *state;
+}
+
+static void test_safety_shield_property_under_random_inputs(void)
+{
+    AiNavigationState state;
+    uint32_t seed = 0x12345678U;
+    uint32_t i;
+    ai_navigation_init(&state);
+
+    for (i = 0U; i < 5000U; ++i) {
+        AiSensorFrame frame = clear_frame();
+        AiNavigationCommand command;
+        uint32_t now_ms = 10000U + i;
+        uint32_t r = next_random(&seed);
+        frame.front_mm = (uint16_t)(1U + (r % 2000U));
+        r = next_random(&seed);
+        frame.left_mm = (uint16_t)(1U + (r % 2000U));
+        frame.left_valid = (next_random(&seed) % 4U) != 0U;
+        r = next_random(&seed);
+        frame.right_mm = (uint16_t)(1U + (r % 2000U));
+        frame.right_valid = (next_random(&seed) % 4U) != 0U;
+        frame.front_sample_ms = now_ms;
+        frame.left_sample_ms = frame.left_valid ? now_ms :
+                               now_ms - AI_SIDE_MAX_AGE_MS - 1U;
+        frame.right_sample_ms = frame.right_valid ? now_ms :
+                                now_ms - AI_SIDE_MAX_AGE_MS - 1U;
+        frame.yaw_rate_dps =
+            ((float)(next_random(&seed) % 40001U) / 100.0f) - 200.0f;
+
+        command = ai_navigation_step(&state, &frame, now_ms);
+        if (command.action == AI_ACTION_FORWARD)
+            assert(frame.front_mm >= AI_FRONT_CLEAR_MM);
+        if (command.action == AI_ACTION_TURN_LEFT)
+            assert(frame.left_valid &&
+                   (uint32_t)(now_ms - frame.left_sample_ms) <= AI_SIDE_MAX_AGE_MS &&
+                   frame.left_mm >= AI_SIDE_CLEAR_MM);
+        if (command.action == AI_ACTION_TURN_RIGHT)
+            assert(frame.right_valid &&
+                   (uint32_t)(now_ms - frame.right_sample_ms) <= AI_SIDE_MAX_AGE_MS &&
+                   frame.right_mm >= AI_SIDE_CLEAR_MM);
+    }
+}
+
 int main(void)
 {
     test_model_returns_valid_probabilities();
@@ -161,6 +223,8 @@ int main(void)
     test_missing_side_cannot_authorize_turn();
     test_closing_rate_feature_is_calculated();
     test_disabled_autonomy_stops();
+    test_invalid_yaw_forces_stop();
+    test_safety_shield_property_under_random_inputs();
     puts("PASS: GyroGuard TinyML inference and safety-shield tests");
     return 0;
 }
