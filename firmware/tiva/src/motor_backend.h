@@ -88,7 +88,3 @@ static void motor_command_differential(float balance_command,
 #endif
 }
 
-static void motor_command(float command)
-{
-    motor_command_differential(command, 0.0f);
-}
