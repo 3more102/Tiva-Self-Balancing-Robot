@@ -34,6 +34,24 @@ flowchart LR
 
 **Explore the engineering diagrams:** [Complete hardware/system diagrams](docs/architecture.md) · [Control theory and formulas](docs/control_theory.md) · [Wiring / pinout](hardware/wiring.md) · [Selection and power budget](docs/component_selection.md)
 
+## TinyML obstacle navigation
+
+The new GyroGuard TinyML module adds a compact 5-12-8-5 neural network that
+runs as native C on the TM4C123GH6PM. It consumes front/left/right range,
+front closing speed, and robot yaw rate, then requests FORWARD, TURN_LEFT,
+TURN_RIGHT, STOP, or REASSESS. A separate rule-based safety shield rejects
+unsafe or unsupported model actions. The model does not replace the balance
+PID and does not directly control motor PWM.
+
+The current model is supervised behavior cloning from synthetic scenarios.
+Its 90.93% validation accuracy is measured only against held-out synthetic
+labels from the same expert policy; it is not real-robot accuracy or proof of
+collision avoidance. Real sensor acquisition, AI integration into main.c,
+motor mixing, and physical validation remain outstanding.
+
+See [TinyML architecture and safety boundary](docs/ai_architecture.md) and
+[training/export instructions](ai/README.md).
+
 ## Hardware platform and architecture
 
 | Item | Planned component | Reason / caveat |
@@ -111,7 +129,7 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic \
 python3 -m unittest discover -s tests -p 'test_simulation.py'
 ```
 
-GitHub Actions also runs these **host-side** checks after pushes and pull requests. Their success **does not establish a working Tiva firmware build or safe motor actuation**.
+GitHub Actions also runs these **host-side** checks after pushes and pull requests. The TinyML inference, navigation-policy, dataset, and training smoke tests are also run in CI. Their success **does not establish a working Tiva firmware build or safe motor actuation**.
 
 ### 2. Prepare TI Code Composer Studio / TivaWare
 
