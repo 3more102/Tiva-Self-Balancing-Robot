@@ -99,9 +99,9 @@ static void test_timer_rollover_and_snapshot_staleness(void)
     RangeArray array;
     RangeSnapshot snapshot;
     uint32_t rise = 0xFFFFFF00U;
-    range_array_init(&array, 1U);
+    range_array_init(&array, 80U);
     assert(range_array_next_trigger(&array, 100U, rise) == RANGE_FRONT);
-    complete_echo(&array, RANGE_FRONT, rise, 2000U, 101U);
+    complete_echo(&array, RANGE_FRONT, rise, 160000U, 101U);
     range_array_snapshot(&array, 352U, 250U, 750U, &snapshot);
     assert(!snapshot.front.valid);
     assert(snapshot.front.distance_mm == 343U);
