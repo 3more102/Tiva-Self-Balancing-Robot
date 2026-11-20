@@ -64,11 +64,10 @@ Before selecting pins, reconcile the LaunchPad header, existing PB2/PB3 I2C pins
 
 ## 4. Control integration still required
 
-- Add a non-blocking TivaWare range acquisition backend with timeout, edge timestamps and invalid-sample handling.
-- Decide and document the physical sensor arrangement and pin mapping.
-- The main application now calls the navigation policy and passes its pitch/yaw requests through the controller and differential motor-mixing path; the input structure remains all-invalid/autonomy-disabled until a real sensor backend and operator enable are added.
-- Pass the requested pitch target to the balance controller's target-angle API.
-- Mix yaw bias with the balance command using the differential motor interface; calibrate both wheel polarities with wheels raised.
+- [x] Call the navigation policy from `main.c` and route pitch/yaw requests through the target-angle controller and differential motor mixer.
+- Add a non-blocking TivaWare range-acquisition backend with timeout, edge timestamps and invalid-sample handling.
+- Decide and document the physical sensor arrangement and pin mapping; keep the operator autonomy enable separate from the balance-enable switch.
+- Calibrate both wheel polarities with wheels raised before any motor-output qualification.
 - Keep MOTOR_OUTPUT_ALLOWED set to 0 until the hardware power, polarity, current and emergency-disconnect checks are complete.
 - Add measured sensor latency, stop distance, turn angle and repeatability to the experimental log.
 
@@ -86,4 +85,4 @@ gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
 /tmp/test_navigation
 ```
 
-The tests cover autonomy disable, invalid/stale front data, three-sample clear confirmation, turn-side selection, timed turn completion, post-turn re-verification and holding when neither side is clear. These host tests do not verify TivaWare peripherals, sensor wiring, physical stopping distance or real obstacle avoidance.
+The tests cover autonomy disable, invalid/stale front data, three-sample clear confirmation, turn-side selection, timed turn completion, post-turn re-verification, holding when neither side is clear, uint32 timestamp rollover, stale side-sample rejection and aborting a timed turn when front data becomes stale. These host tests do not verify TivaWare peripherals, sensor wiring, physical stopping distance or real obstacle avoidance.
