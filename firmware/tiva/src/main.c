@@ -160,7 +160,7 @@ int main(void)
     balance_controller_init(&controller, 0.016f, 0.0f, 0.0009f);
 
     navigation_init(&navigation);
-            ai_navigation_init(&ai_state);
+    ai_navigation_init(&ai_state);
     /* Hard-disabled until range acquisition and a separate operator enable
        input have both been implemented and verified. */
     navigation_input.autonomy_enabled = false;
