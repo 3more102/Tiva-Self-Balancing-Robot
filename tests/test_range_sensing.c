@@ -109,6 +109,26 @@ static void test_timer_rollover_and_snapshot_staleness(void)
     assert(snapshot.front.valid);
 }
 
+
+static void test_minimum_echo_and_model_range_cap(void)
+{
+    RangeArray array;
+    RangeSnapshot snapshot;
+    range_array_init(&array);
+    assert(range_array_next_trigger(&array, 0U, 0U) == RANGE_FRONT);
+    complete_echo(&array, RANGE_FRONT, 100U, RANGE_ECHO_MIN_US, 1U);
+    range_array_snapshot(&array, 1U, 250U, 750U, &snapshot);
+    assert(snapshot.front.valid);
+    assert(snapshot.front.distance_mm >= 17U &&
+           snapshot.front.distance_mm <= 18U);
+
+    assert(range_array_next_trigger(&array, 60U, 60000U) == RANGE_LEFT);
+    complete_echo(&array, RANGE_LEFT, 60100U, RANGE_ECHO_MAX_US, 61U);
+    range_array_snapshot(&array, 61U, 250U, 750U, &snapshot);
+    assert(snapshot.left.valid);
+    assert(snapshot.left.distance_mm == RANGE_MAX_DISTANCE_MM);
+}
+
 static void test_failed_hardware_trigger_can_be_cancelled(void)
 {
     RangeArray array;
@@ -128,6 +148,7 @@ int main(void)
     test_stuck_high_echo_times_out();
     test_invalid_pulse_does_not_replace_last_good_sample();
     test_timer_rollover_and_snapshot_staleness();
+    test_minimum_echo_and_model_range_cap();
     test_failed_hardware_trigger_can_be_cancelled();
     puts("PASS: asynchronous range capture, timeout, scheduling and freshness tests");
     return 0;
