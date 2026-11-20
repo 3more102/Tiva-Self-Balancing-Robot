@@ -176,6 +176,19 @@ static void test_high_frequency_timer_ticks(void)
     assert(array.channel[RANGE_FRONT].timeout_count == 1U);
 }
 
+
+static void test_invalid_timer_scale_disables_capture(void)
+{
+    RangeArray array;
+    range_array_init(&array, 0U);
+    assert(array.ticks_per_us == 0U);
+    assert(range_array_next_trigger(&array, 0U, 0U) == RANGE_SENSOR_NONE);
+
+    range_array_init(&array, 0xFFFFFFFFU);
+    assert(array.ticks_per_us == 0U);
+    assert(range_array_next_trigger(&array, 0U, 0U) == RANGE_SENSOR_NONE);
+}
+
 static void test_failed_hardware_trigger_can_be_cancelled(void)
 {
     RangeArray array;
@@ -198,6 +211,7 @@ int main(void)
     test_minimum_echo_and_model_range_cap();
     test_high_frequency_timer_ticks();
     test_80mhz_counter_tick_scaling();
+    test_invalid_timer_scale_disables_capture();
     test_failed_hardware_trigger_can_be_cancelled();
     puts("PASS: asynchronous range capture, timeout, scheduling and freshness tests");
     return 0;
