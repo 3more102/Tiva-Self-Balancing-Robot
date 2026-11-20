@@ -54,6 +54,12 @@ This regenerates:
 - firmware/tiva/include/ai_model_weights.h — weights embedded in the MCU build.
 - ai/model_metrics.json — reproducibility and held-out validation metrics.
 
+The evaluation artifact includes a labeled confusion matrix, per-class
+precision/recall/F1/support, macro precision/recall/F1, and support-weighted
+F1. Macro averages include all configured actions; classes with zero support
+are reported as zero rather than silently omitted. These scores describe
+agreement with the synthetic teacher policy only.
+
 For a quick smoke test:
 
     python3 ai/train_model.py --samples 10000 --epochs 30 --output /tmp/ai_model_weights.h --metrics /tmp/ai_model_metrics.json
