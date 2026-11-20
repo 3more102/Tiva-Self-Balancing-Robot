@@ -34,6 +34,8 @@ flowchart LR
 
 **Explore the engineering diagrams:** [Complete hardware/system diagrams](docs/architecture.md) · [Control theory and formulas](docs/control_theory.md) · [Wiring / pinout](hardware/wiring.md) · [Selection and power budget](docs/component_selection.md)
 
+**Obstacle avoidance foundation:** [Policy, state machine and hardware integration plan](docs/obstacle_avoidance.md). The policy is host-tested; range-sensor acquisition and physical navigation are still pending.
+
 ## Hardware platform and architecture
 
 | Item | Planned component | Reason / caveat |
@@ -44,6 +46,7 @@ flowchart LR
 | Actuation | Two brushed DC geared motors | Exact gear ratio, torque and current **TBD** |
 | Structure | Two wheels + supported vertical chassis | Mass, inertia, wheel radius and COM **TBD** |
 | Supply | Battery, regulator, fuse and accessible motor cutoff | Values and schematic **TBD**; never power motors from MCU pins |
+| Range sensing | Three front/left/right range readings (proposed) | Exact sensor modules, pinout and acquisition driver **TBD** |
 
 **Planned signal map:** I²C0: PB2/PB3; PWM: PB6/PB7; motor direction: PC4–PC7; driver STBY: PA5; SW1: PF4. Board-specific shared pins and voltage warnings are detailed in [hardware/wiring.md](hardware/wiring.md).
 
@@ -70,6 +73,7 @@ This is an **illustrative block diagram, not the electrical schematic** required
 - Guard conditions on invalid sensor readings and invalid measured update intervals, including missed-sample faults.
 - **Release-to-arm** logic: observe switch release; require 40 consecutive upright sample checks (≤8°) with switch held, then allow the software command gate.
 - **Trip:** ≥25° pitch, sensor failure or invalid calculation -> disable the driver; fault requires release before rearming. A fatal I²C failure is latched until hardware reset.
+- **Obstacle policy:** portable front/left/right range policy with stale-data stop, side-clearance selection, timed differential turn and post-turn front re-verification. It is not yet connected to a Tiva range-sensor driver.
 - **Compile-time actuator interlock**: `MOTOR_OUTPUT_ALLOWED 0` is the default in `firmware/tiva/src/main.c`. Motor driver STBY remains LOW; code alone does **not** replace a motor-battery fuse, power switch or hardware cutoff.
 
 ```mermaid
@@ -85,6 +89,17 @@ stateDiagram-v2
 ```
 
 **Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
+
+## Obstacle avoidance — current software milestone
+
+The new portable navigation module accepts fresh front, left and right distance samples and produces a small pitch target plus a differential yaw request. It stops on invalid/stale front data, refuses to turn unless a side has verified clearance, and requires three new clear front samples after a turn before cruising again.
+
+- Policy source: **firmware/tiva/src/navigation.c**
+- Public interface: **firmware/tiva/include/navigation.h**
+- Host tests: **tests/test_navigation.c**
+- Design and hardware integration plan: **docs/obstacle_avoidance.md**
+
+The balance controller now has a target-angle API, and the motor backend has differential wheel mixing. The main Tiva application is **not yet wired to the navigation module** because the range-sensor acquisition backend and physical sensor pinout are still outstanding. No physical obstacle avoidance is claimed. With no wheel encoders, the initial lean and timed-turn commands are open-loop.
 
 ## Getting started
 
@@ -109,6 +124,12 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic \
     -lm -o test_diagnostics
 ./test_diagnostics
 python3 -m unittest discover -s tests -p 'test_simulation.py'
+
+gcc -std=c11 -Wall -Wextra -Werror -pedantic \
+    -Ifirmware/tiva/include \
+    firmware/tiva/src/navigation.c tests/test_navigation.c \
+    -lm -o /tmp/test_navigation
+/tmp/test_navigation
 ```
 
 GitHub Actions also runs these **host-side** checks after pushes and pull requests. Their success **does not establish a working Tiva firmware build or safe motor actuation**.
@@ -146,8 +167,10 @@ Tiva-Self-Balancing-Robot/
 ├── firmware/tiva/
 │   ├── include/controller.h              # control/safety interfaces
 │   ├── include/diagnostics.h             # calibration + timing interfaces
+│   ├── include/navigation.h              # portable obstacle policy interface
 │   ├── src/controller.c                  # estimator, PID and safety machine
 │   ├── src/diagnostics.c                 # stationary gyro calibration / timing
+│   ├── src/navigation.c                 # fail-safe obstacle policy
 │   ├── src/main.c                        # TivaWare 200 Hz application
 │   ├── src/imu_backend.h                 # MPU6050 I2C functions
 │   ├── src/motor_backend.h               # TB6612FNG direction / PWM / STBY
@@ -177,6 +200,7 @@ Tiva-Self-Balancing-Robot/
 │       └── STAGE3_final_report.md
 ├── tests/test_controller.c               # host-side estimator/PID/safety tests
 ├── tests/test_diagnostics.c              # calibration & timer-wrap tests
+├── tests/test_navigation.c              # obstacle policy and freshness tests
 ├── tests/test_simulation.py              # theoretical model assertions
 ├── .github/workflows/host-tests.yml
 └── tools/publish_github.ps1
