@@ -21,6 +21,79 @@ def softmax(logits: np.ndarray) -> np.ndarray:
     return exp / np.sum(exp, axis=1, keepdims=True)
 
 
+def classification_metrics(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    class_names: tuple[str, ...] = ACTION_NAMES,
+) -> dict:
+    """Return a labeled confusion matrix and per-class classification metrics.
+
+    Macro averages include every configured class (a class with no support
+    contributes zero); weighted F1 is weighted by true-class support.
+    """
+    true = np.asarray(y_true)
+    predicted = np.asarray(y_pred)
+    names = tuple(class_names)
+
+    if true.ndim != 1 or predicted.ndim != 1:
+        raise ValueError("labels must be one-dimensional")
+    if true.size == 0 or true.shape != predicted.shape:
+        raise ValueError("label arrays must be non-empty and have equal length")
+    if (not np.issubdtype(true.dtype, np.integer) or
+            not np.issubdtype(predicted.dtype, np.integer)):
+        raise ValueError("labels must contain integer class indices")
+    if not names or len(set(names)) != len(names):
+        raise ValueError("class_names must be non-empty and unique")
+    if (np.any(true < 0) or np.any(true >= len(names)) or
+            np.any(predicted < 0) or np.any(predicted >= len(names))):
+        raise ValueError("label index is outside the configured class range")
+
+    matrix = np.zeros((len(names), len(names)), dtype=np.int64)
+    np.add.at(matrix, (true, predicted), 1)
+
+    true_positive = np.diag(matrix).astype(np.float64)
+    support = matrix.sum(axis=1).astype(np.int64)
+    predicted_count = matrix.sum(axis=0).astype(np.int64)
+    precision = np.divide(
+        true_positive, predicted_count,
+        out=np.zeros(len(names), dtype=np.float64),
+        where=predicted_count > 0,
+    )
+    recall = np.divide(
+        true_positive, support,
+        out=np.zeros(len(names), dtype=np.float64),
+        where=support > 0,
+    )
+    f1 = np.divide(
+        2.0 * precision * recall, precision + recall,
+        out=np.zeros(len(names), dtype=np.float64),
+        where=(precision + recall) > 0,
+    )
+    total = int(support.sum())
+    weighted_f1 = float(np.dot(f1, support) / total)
+
+    return {
+        "confusion_matrix": matrix.tolist(),
+        "confusion_matrix_labels": list(names),
+        "per_class_precision": {
+            name: float(precision[i]) for i, name in enumerate(names)
+        },
+        "per_class_recall": {
+            name: float(recall[i]) for i, name in enumerate(names)
+        },
+        "per_class_f1": {
+            name: float(f1[i]) for i, name in enumerate(names)
+        },
+        "per_class_support": {
+            name: int(support[i]) for i, name in enumerate(names)
+        },
+        "macro_precision": float(np.mean(precision)),
+        "macro_recall": float(np.mean(recall)),
+        "macro_f1": float(np.mean(f1)),
+        "weighted_f1": weighted_f1,
+    }
+
+
 def forward(x: np.ndarray, p: dict[str, np.ndarray]):
     z1 = x @ p["w1"].T + p["b1"]
     h1 = np.maximum(z1, 0.0)
@@ -101,11 +174,7 @@ def train(samples: int = 50000, epochs: int = 120, seed: int = 23):
     val_probs = softmax(val_logits)
     predicted = np.argmax(val_probs, axis=1)
     accuracy = float(np.mean(predicted == y_val))
-    per_class = {
-        ACTION_NAMES[i]: float(np.mean(predicted[y_val == i] == i))
-        if np.any(y_val == i) else 0.0
-        for i in range(ACTIONS)
-    }
+    evaluation = classification_metrics(y_val, predicted, ACTION_NAMES)
     metrics = {
         "model": "GyroGuard TinyML MLP",
         "architecture": [INPUTS, HIDDEN1, HIDDEN2, ACTIONS],
@@ -114,7 +183,7 @@ def train(samples: int = 50000, epochs: int = 120, seed: int = 23):
         "epochs": int(epochs),
         "seed": int(seed),
         "validation_accuracy": accuracy,
-        "per_class_recall": per_class,
+        **evaluation,
         "class_names": list(ACTION_NAMES),
         "data_origin": "SYNTHETIC_EXPERT_POLICY_BEHAVIOR_CLONING_NOT_ROBOT_MEASUREMENTS",
         "parameter_count": int(sum(a.size for a in params.values())),
