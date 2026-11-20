@@ -126,7 +126,7 @@ int main(void)
     balance_controller_init(&controller, 0.016f, 0.0f, 0.0009f);
 
     for (;;) {
-        bool pressed;
+        bool pressed, balance_armed;
         float angle, output;
         await_tick();
         /* Actual elapsed time, not assumed constant Ts. A missed/abnormal
@@ -137,6 +137,7 @@ int main(void)
         if (!on_time) {
             g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
             g_ai_safety_override_debug = 1U;
+            g_ai_confidence_debug = 0.0f;
             (void)balance_safety_update(&safety, NAN, pressed, false);
             balance_controller_reset(&controller);
             motors_off();
@@ -145,6 +146,9 @@ int main(void)
         }
         if (!imu_ok || !mpu_sample(&ay, &az, &gx, &gz)) {
             imu_ok = false; /* Fatal sensor fault requires a hardware reset. */
+            g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+            g_ai_safety_override_debug = 1U;
+            g_ai_confidence_debug = 0.0f;
             (void)balance_safety_update(&safety, NAN, pressed, false);
             motors_off();
             indicator(GPIO_PIN_1);
@@ -157,35 +161,33 @@ int main(void)
         g_yaw_rate_debug_dps = gz - gyro_cal_yaw_bias_dps(&gyro_cal);
 
         angle = tilt_estimator_update(&estimator, ay, az, gx, dt_s);
-        {
-            const bool balance_armed =
-                balance_safety_update(&safety, angle, pressed, imu_ok);
+        balance_armed = balance_safety_update(&safety, angle, pressed, imu_ok);
 
-            /* Run the navigation model at 50 Hz in shadow mode. It reports
+        /* Run the navigation model at 50 Hz in shadow mode. It reports
                decisions to the debugger but cannot change pitch or PWM. */
-            if (++ai_divider >= 4U) {
-                ai_divider = 0U;
-                range_backend_snapshot(now_ms, &range_snapshot);
-                if (ai_sensor_frame_from_ranges(
-                        &ai_frame, &range_snapshot, balance_armed,
-                        g_yaw_rate_debug_dps)) {
-                    ai_command = ai_navigation_step(&ai_state, &ai_frame, now_ms);
-                    g_ai_action_debug = (uint32_t)ai_command.action;
-                    g_ai_confidence_debug = ai_command.confidence;
-                    g_ai_safety_override_debug =
-                        ai_command.safety_override ? 1U : 0U;
-                } else {
-                    g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
-                    g_ai_safety_override_debug = 1U;
-                }
+        if (++ai_divider >= 4U) {
+            ai_divider = 0U;
+            range_backend_snapshot(now_ms, &range_snapshot);
+            if (ai_sensor_frame_from_ranges(
+                    &ai_frame, &range_snapshot, balance_armed,
+                    g_yaw_rate_debug_dps)) {
+                ai_command = ai_navigation_step(&ai_state, &ai_frame, now_ms);
+                g_ai_action_debug = (uint32_t)ai_command.action;
+                g_ai_confidence_debug = ai_command.confidence;
+                g_ai_safety_override_debug =
+                    ai_command.safety_override ? 1U : 0U;
+            } else {
+                g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+                g_ai_safety_override_debug = 1U;
+                g_ai_confidence_debug = 0.0f;
             }
+        }
 
-            if (!balance_armed) {
+        if (!balance_armed) {
             balance_controller_reset(&controller);
             motors_off();
             indicator(safety.mode == BALANCE_FAULT ? GPIO_PIN_1 : GPIO_PIN_2);
             continue;
-            }
         }
         output = balance_controller_update(
             &controller, angle, gx - estimator.gyro_bias_dps,
