@@ -189,6 +189,7 @@ Tiva-Self-Balancing-Robot/
 │   ├── src/ai_navigation.c                # AI decisions + safety shield
 │   ├── src/ai_sensor_adapter.c            # map range snapshot into AI inputs
 │   ├── src/range_sensing.c                # pulse capture, scheduler, freshness
+│   ├── src/range_backend.h                 # optional Tiva HC-SR04 GPIO/timer adapter
 │   ├── src/main.c                        # TivaWare 200 Hz application
 │   ├── src/imu_backend.h                 # MPU6050 I2C functions
 │   ├── src/motor_backend.h               # TB6612FNG direction / PWM / STBY
