@@ -37,6 +37,21 @@ jobs:
             firmware/tiva/src/diagnostics.c tests/test_diagnostics.c \
             -lm -o /tmp/test_diagnostics_ubsan
           /tmp/test_diagnostics_ubsan
+      - name: Compile and run obstacle avoidance state-machine tests
+        run: |
+          gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
+            -Ifirmware/tiva/include \
+            firmware/tiva/src/obstacle_avoidance.c tests/test_obstacle_avoidance.c \
+            -lm -o /tmp/test_obstacle_avoidance
+          /tmp/test_obstacle_avoidance
+      - name: Obstacle avoidance undefined behavior sanitizer
+        run: |
+          gcc -std=c11 -O1 -g -Wall -Wextra -Werror -pedantic \
+            -fsanitize=undefined -fno-sanitize-recover=all \
+            -Ifirmware/tiva/include \
+            firmware/tiva/src/obstacle_avoidance.c tests/test_obstacle_avoidance.c \
+            -lm -o /tmp/test_obstacle_avoidance_ubsan
+          /tmp/test_obstacle_avoidance_ubsan
       - name: Test theoretical pitch-only simulation
         run: python3 -m unittest discover -s tests -p "test_simulation.py" -v
       - name: Generate deterministic theoretical simulation outputs

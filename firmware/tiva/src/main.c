@@ -17,6 +17,7 @@
 #include "driverlib/timer.h"
 #include "controller.h"
 #include "diagnostics.h"
+#include "obstacle_avoidance.h"
 
 #define MOTOR_OUTPUT_ALLOWED 0  /* MUST remain disabled before hardware qualification. */
 #define MOTOR_POLARITY (-1.0f)
@@ -43,6 +44,7 @@ static void wait_for_peripheral(uint32_t id)
 
 #include "imu_backend.h"
 #include "motor_backend.h"
+#include "ultrasonic_backend.h"
 
 static void control_timer_init(void)
 {
@@ -75,6 +77,11 @@ int main(void)
     GyroCalibration gyro_cal;
     LoopTiming timing;
     bool imu_ok;
+    bool range_ready;
+    bool range_valid;
+    float range_cm = NAN;
+    float steering;
+    ObstacleAvoidance navigation;
     BalanceSafety safety;
     TiltEstimator estimator;
     BalanceController controller;
@@ -87,6 +94,8 @@ int main(void)
     indicator(GPIO_PIN_2); /* blue: safe/off */
     imu_ok = imu_init();
     control_timer_init();
+    (void)ultrasonic_init(); /* Range failure must not stop pitch stabilization. */
+    obstacle_avoidance_init(&navigation);
     gyro_cal_init(&gyro_cal);
     if (imu_ok) {
         /* Calibration requires 200 consecutive, upright, still samples
@@ -132,6 +141,10 @@ int main(void)
             continue;
         }
         angle = tilt_estimator_update(&estimator, ay, az, gx, dt_s);
+        range_cm = NAN;
+        range_valid = false;
+        range_ready = ultrasonic_service(
+            TimerValueGet(TIMER1_BASE, TIMER_A), &range_cm, &range_valid);
         if (!balance_safety_update(&safety, angle, pressed, imu_ok)) {
             balance_controller_reset(&controller);
             motors_off();
@@ -147,7 +160,10 @@ int main(void)
             indicator(GPIO_PIN_1);
             continue;
         }
-        motor_command(MOTOR_POLARITY * output);
+        steering = obstacle_avoidance_step(&navigation, dt_s,
+                                             range_ready, range_valid, range_cm);
+        motor_command(MOTOR_POLARITY * (output - steering),
+                      MOTOR_POLARITY * (output + steering));
         indicator(MOTOR_OUTPUT_ALLOWED ? GPIO_PIN_3 : GPIO_PIN_2);
     }
 }

@@ -49,11 +49,11 @@ static void motors_off(void)
     PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, 1U);
 }
 
-static void motor_command(float command)
+static void motor_command(float left_command, float right_command)
 {
 #if MOTOR_OUTPUT_ALLOWED
-    float left = command * (float)LEFT_MOTOR_POLARITY;
-    float right = command * (float)RIGHT_MOTOR_POLARITY;
+    float left = left_command * (float)LEFT_MOTOR_POLARITY;
+    float right = right_command * (float)RIGHT_MOTOR_POLARITY;
     uint8_t dir = 0U;
     uint32_t left_width, right_width;
     if (!isfinite(left) || !isfinite(right)) { motors_off(); return; }
@@ -74,7 +74,8 @@ static void motor_command(float command)
     PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, right_width);
     GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_5, GPIO_PIN_5);
 #else
-    (void)command;
+    (void)left_command;
+    (void)right_command;
     motors_off();
 #endif
 }
