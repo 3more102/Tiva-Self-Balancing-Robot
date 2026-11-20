@@ -31,7 +31,7 @@ An optional Tiva adapter is present for three HC-SR04-compatible trigger/echo mo
 | Left | PE2 | PE3 | Left-side clearance |
 | Right | PE4 | PE5 | Right-side clearance |
 
-The optional adapter uses Timer2A to end a 10 µs trigger pulse and Port E GPIO interrupts to timestamp both Echo edges. Timer1A provides raw 80 MHz timestamps. The EK-TM4C123GXL manual shows PE0–PE5 on the LaunchPad expansion headers ([TI board manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf)).
+The optional adapter uses Timer2A to end a 12 µs trigger pulse and Port E GPIO interrupts to timestamp both Echo edges. Timer1A provides raw 80 MHz timestamps. The EK-TM4C123GXL manual shows PE0–PE5 on the LaunchPad expansion headers ([TI board manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf)).
 
 **Voltage warning:** many HC-SR04-style modules use 5 V power and may output 5 V on Echo. Never connect a 5 V Echo signal directly to a TM4C123 GPIO. Use a verified level shifter or resistor divider unless the exact module guarantees a 3.3 V-safe Echo output. Confirm the module accepts the Tiva's 3.3 V Trigger level. Keep the backend disabled until this is verified.
 
