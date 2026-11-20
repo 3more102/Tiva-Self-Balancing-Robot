@@ -219,6 +219,87 @@ static void test_autonomy_disable_cancels_motion(void)
     assert(command.pitch_target_deg == 0.0f && command.yaw_bias == 0.0f);
 }
 
+
+static void test_sample_timestamps_survive_uint32_wrap(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+
+    navigation_init(&nav);
+    input.front_sample_ms = UINT32_MAX - 15U;
+    command = navigation_update(&nav, &input, UINT32_MAX - 15U);
+    assert(command.mode == NAV_HOLD);
+
+    input.front_sample_ms = 16U;
+    command = navigation_update(&nav, &input, 16U);
+    assert(command.mode == NAV_HOLD);
+
+    input.front_sample_ms = 76U;
+    command = navigation_update(&nav, &input, 76U);
+    assert(command.mode == NAV_CRUISE);
+    assert(command.travel_permitted);
+}
+
+static void test_stale_side_samples_cannot_authorize_turn(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+    uint32_t now = 10U;
+
+    navigation_init(&nav);
+    (void)feed_clearance(&nav, &input, &now);
+
+    input.front_mm = 200U;
+    input.front_sample_ms = 200U;
+    input.left_mm = 900U;
+    input.right_mm = 1100U;
+    input.left_sample_ms = 200U;
+    input.right_sample_ms = 200U;
+    (void)navigation_update(&nav, &input, 200U);
+
+    input.front_sample_ms = 320U;
+    input.left_sample_ms = 320U - (NAV_SIDE_MAX_AGE_MS + 1U);
+    input.right_sample_ms = 320U - (NAV_SIDE_MAX_AGE_MS + 1U);
+    command = navigation_update(&nav, &input, 320U);
+    assert(command.mode == NAV_HOLD);
+    assert(!command.travel_permitted);
+    assert(command.yaw_bias == 0.0f);
+}
+
+static void test_stale_front_sample_aborts_timed_turn(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+    uint32_t now = 10U;
+
+    navigation_init(&nav);
+    (void)feed_clearance(&nav, &input, &now);
+
+    input.front_mm = 200U;
+    input.front_sample_ms = 200U;
+    input.left_mm = 700U;
+    input.right_mm = 1100U;
+    input.left_sample_ms = 200U;
+    input.right_sample_ms = 200U;
+    (void)navigation_update(&nav, &input, 200U);
+
+    input.front_sample_ms = 320U;
+    input.left_sample_ms = 320U;
+    input.right_sample_ms = 320U;
+    command = navigation_update(&nav, &input, 320U);
+    assert(command.mode == NAV_TURN_RIGHT);
+    assert(command.travel_permitted);
+
+    command = navigation_update(&nav, &input,
+                                320U + NAV_FRONT_MAX_AGE_MS + 1U);
+    assert(command.mode == NAV_HOLD);
+    assert(!command.travel_permitted);
+    assert(command.yaw_bias == 0.0f);
+}
+
 int main(void)
 {
     test_disabled_and_invalid_fail_safe();
@@ -228,6 +309,9 @@ int main(void)
     test_no_verified_side_means_no_turn();
     test_stale_side_ranges_cannot_authorize_turn();
     test_autonomy_disable_cancels_motion();
+    test_sample_timestamps_survive_uint32_wrap();
+    test_stale_side_samples_cannot_authorize_turn();
+    test_stale_front_sample_aborts_timed_turn();
     puts("PASS: obstacle navigation fail-safe, freshness, turn and re-verification tests");
     return 0;
 }
