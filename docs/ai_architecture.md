@@ -33,7 +33,9 @@ The 200 Hz balance loop remains highest priority. The MPU6050 backend reads
 gyro X for pitch and vertical-axis gyro Z for yaw; startup calibration
 estimates both offsets, and the corrected runtime yaw rate is passed to the
 AI sensor frame. The main loop services the range scheduler without a busy
-wait and runs inference at 50 Hz in **shadow mode**.
+wait and runs inference at 50 Hz **after issuing the balance motor command**
+in shadow mode. The added computation's effect on the next 200 Hz deadline
+has not been measured; see the T-11 hardware verification case.
 
 An optional TivaWare HC-SR04-compatible adapter exists, but is disabled by
 default until the actual module and voltage levels are confirmed. With the
