@@ -68,7 +68,7 @@ electrical caveats are documented in [hardware/wiring.md](../hardware/wiring.md)
 
 ## Next milestones
 
-1. Review this integrated source and get host CI passing.
+1. Review the integrated source; host CI passed on commit `b24d12f82b107fec6b86073986eafd87f5f25bd2` in [run 44779316855](https://github.com/3more102/Tiva-Self-Balancing-Robot/actions/runs/44779316855).
 2. Add the TivaWare GPTM CCP backend and connect the range acquisition
    coordinator to the main loop.
 3. Add and verify a separate operator autonomy-enable input.
