@@ -33,7 +33,7 @@ Present diagram from [architecture.md](../architecture.md). Document SPI/I2C cho
 - Hardware motor cutoff, fuse and appropriately rated motor driver; show schematic and test procedure.
 - Comparison of predicted controller output and measured output for selected test vectors.
 
-**Important:** current software alone provides no independent watchdog or fail-safe hardware cutoff beyond holding driver STBY low while running. A physical cutoff is still necessary.
+**Important:** firmware now includes WDT0 software progress supervision, but it is not yet target-tested and is not an independent fail-safe hardware cutoff. A physical motor-power cutoff and external STBY pull-down remain necessary.
 
 ## 6. Experiment design and plots
 
@@ -51,7 +51,7 @@ Interpret failures (sensor motion artifacts, motor deadzone, battery droop, time
 
 ## 8. Conclusions, learning outcomes and future work
 
-Summarize only measured outcomes. Potential upgrades: wheel encoders, cascaded speed/pitch control, tested independent watchdog, current sensing, robust scheduling, parameter fitting and extended full-state models. State all unresolved safety and scope deviations.
+Summarize only measured outcomes. Potential upgrades: wheel encoders, cascaded speed/pitch control, target-verified watchdog behavior and independent hardware cutoff, current sensing, robust scheduling, parameter fitting and extended full-state models. State all unresolved safety and scope deviations.
 
 ## 9. Deliverables and presentation skeleton
 
