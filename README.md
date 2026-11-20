@@ -102,6 +102,7 @@ This is an **illustrative block diagram, not the electrical schematic** required
 - **Release-to-arm** logic: observe switch release; require 40 consecutive upright sample checks (≤8°) with switch held, then allow the software command gate.
 - **Trip:** ≥25° pitch, sensor failure or invalid calculation -> disable the driver; fault requires release before rearming. A fatal I²C failure is latched until hardware reset.
 - **Compile-time actuator interlock**: `MOTOR_OUTPUT_ALLOWED 0` is the default in `firmware/tiva/src/main.c`. Motor driver STBY remains LOW; code alone does **not** replace a motor-battery fuse, power switch or hardware cutoff.
+- **WDOG0 foreground supervision**: source-integrated with a nominal 50 ms first timeout and reset on the second unserviced timeout. It has not been target-compiled or fault-injection tested; it shares the system clock and cannot remove motor power. See [watchdog safety and target verification](docs/watchdog_safety.md).
 
 ```mermaid
 stateDiagram-v2
@@ -115,7 +116,7 @@ stateDiagram-v2
   FAULT --> DISARMED: valid sensor + release
 ```
 
-**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
+**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Watchdog safety](docs/watchdog_safety.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
 
 ## Getting started
 
@@ -212,6 +213,7 @@ Tiva-Self-Balancing-Robot/
 │   ├── component_selection.md            # motor/driver/supply worksheet
 │   ├── optimization_and_design_review.md # implemented vs planned work
 │   ├── verification_plan.md             # before-power-on / bench criteria
+│   ├── watchdog_safety.md                # WDOG0 behavior and target test procedure
 │   ├── range_sensing.md                  # ultrasonic capture design and limits
 │   ├── ai_architecture.md                # TinyML architecture and safety boundary
 │   ├── assignment_checklist.md           # official submission requirements
@@ -243,7 +245,7 @@ Tiva-Self-Balancing-Robot/
 
 ## What can be claimed today?
 
-**Implemented in source:** portable C pitch estimator, guarded PD/PID, safety state machine, gyro calibration, Timer1 elapsed-period guard, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
+**Implemented in source:** portable C pitch estimator, guarded PD/PID, safety state machine, gyro calibration, Timer1 elapsed-period guard, WDOG0 foreground supervision, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
 **Verified:** host-side regression tests and deterministic simulation checks, based on GitHub Actions when green.  
 **Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, actual stationary IMU calibration, sampling timing, assembled robot, balancing, physical protection, measured telemetry and hardware performance.
 
