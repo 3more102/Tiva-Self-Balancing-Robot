@@ -10,7 +10,7 @@
 #define NAV_MAX_RANGE_MM 4000U /* Initial sensor-independent upper bound; tune to module datasheet. */
 #define NAV_SIDE_CLEAR_MM 500U
 #define NAV_FRONT_MAX_AGE_MS 250U
-#define NAV_SIDE_MAX_AGE_MS 750U
+#define NAV_SIDE_MAX_AGE_MS 250U
 #define NAV_TURN_DURATION_MS 350U
 #define NAV_TURN_RETRY_MS 100U
 #define NAV_CLEAR_CONFIRMATIONS 3U
