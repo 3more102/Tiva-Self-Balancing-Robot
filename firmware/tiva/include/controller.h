@@ -49,6 +49,10 @@ void balance_controller_init(BalanceController *pid, float kp, float ki, float k
 void balance_controller_reset(BalanceController *pid);
 float balance_controller_update(BalanceController *pid, float angle_deg,
                                 float gyro_x_dps, float dt_s);
+/* Variant for controlled travel: target_angle_deg is the commanded lean. */
+float balance_controller_update_target(BalanceController *pid, float angle_deg,
+                                       float gyro_x_dps, float target_angle_deg,
+                                       float dt_s);
 bool balance_is_safe(float angle_deg, bool enable_pressed, bool sensor_ok);
 
 /* Arm only after a release, then 40 consecutive upright samples.
