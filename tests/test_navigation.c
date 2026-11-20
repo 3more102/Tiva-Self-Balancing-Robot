@@ -300,6 +300,40 @@ static void test_stale_front_sample_aborts_timed_turn(void)
     assert(command.yaw_bias == 0.0f);
 }
 
+static void test_stale_selected_side_aborts_turn(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+    uint32_t now = 10U;
+
+    navigation_init(&nav);
+    (void)feed_clearance(&nav, &input, &now);
+
+    input.front_mm = 200U;
+    input.front_sample_ms = 200U;
+    input.left_mm = 700U;
+    input.right_mm = 1100U;
+    input.left_sample_ms = 200U;
+    input.right_sample_ms = 200U;
+    (void)navigation_update(&nav, &input, 200U);
+
+    input.front_sample_ms = 320U;
+    input.left_sample_ms = 320U;
+    input.right_sample_ms = 320U;
+    command = navigation_update(&nav, &input, 320U);
+    assert(command.mode == NAV_TURN_RIGHT);
+    assert(command.yaw_bias > 0.0f);
+
+    /* Front remains fresh, but the selected right-side reading is stale. */
+    input.front_sample_ms = 600U;
+    input.left_sample_ms = 600U;
+    command = navigation_update(&nav, &input, 600U);
+    assert(command.mode == NAV_HOLD);
+    assert(!command.travel_permitted);
+    assert(command.pitch_target_deg == 0.0f && command.yaw_bias == 0.0f);
+}
+
 static void test_out_of_range_readings_cannot_authorize_motion(void)
 {
     Navigation nav;
@@ -344,6 +378,7 @@ int main(void)
     test_sample_timestamps_survive_uint32_wrap();
     test_stale_side_samples_cannot_authorize_turn();
     test_stale_front_sample_aborts_timed_turn();
+    test_stale_selected_side_aborts_turn();
     puts("PASS: obstacle navigation fail-safe, freshness, turn and re-verification tests");
     return 0;
 }
