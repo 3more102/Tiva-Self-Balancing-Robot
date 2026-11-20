@@ -52,7 +52,7 @@ The gyro offset is estimated only after 200 **consecutive** valid, stationary, u
 
 - Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing, CPU hangs and counter overflow/aliasing after ~53.7 s remain limitations.
 - I2C transaction handling has a software-bounded busy poll; timeouts, bus recovery, transaction sequencing and maximum duration still require real-target tests.
-- No wheel encoders, independent watchdog, UART logger, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist.
+- No wheel encoders, UART logger, independent-clock watchdog/brownout supervisor, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist. WDOG0 is system-clocked and its target behavior remains unverified.
 - Current MATLAB LQR is an illustrative comparison, not deployed code. Control gains are placeholders.
 - Software output gating does not substitute for power isolation and mechanical restraint.
 
