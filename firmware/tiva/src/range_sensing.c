@@ -27,10 +27,11 @@ void range_array_init(RangeArray *array, uint32_t ticks_per_us)
     uint32_t i;
     if (array == NULL) return;
     memset(array, 0, sizeof(*array));
+    /* Invalid scales disable capture; never silently assume 1 MHz. */
     array->ticks_per_us =
         (ticks_per_us == 0U ||
          ticks_per_us > (0x7FFFFFFFU / RANGE_ECHO_TIMEOUT_US)) ?
-        1U : ticks_per_us;
+        0U : ticks_per_us;
     for (i = 0U; i < RANGE_SENSOR_COUNT; ++i)
         array->channel[i].state = RANGE_CAPTURE_IDLE;
     array->next_sensor = (uint8_t)RANGE_FRONT;
@@ -57,7 +58,8 @@ uint8_t range_array_next_trigger(RangeArray *array,
     uint8_t sensor;
     RangeChannel *channel;
 
-    if (array == NULL) return RANGE_SENSOR_NONE;
+    if (array == NULL || array->ticks_per_us == 0U)
+        return RANGE_SENSOR_NONE;
     range_array_poll(array, now_ticks);
 
     if (array->active_sensor != RANGE_SENSOR_NONE) return RANGE_SENSOR_NONE;
