@@ -1,13 +1,13 @@
 # Verification and acceptance test plan
 
-**Scope:** Requirements and reproducibility plan. As of 23 Oct 2026 **no actual Tiva hardware acceptance test has been reported**. Do not check off hardware tests based on the host-only C test suite.
+**Scope:** Requirements and reproducibility plan. As of 20 Nov 2026 **no actual Tiva hardware acceptance test has been reported**. Do not check off hardware tests based on the host-only C test suite.
 
 ## Verification hierarchy
 
 | Level | Objective | Evidence available |
 |---|---|---|
 | L0 — source and mathematical integrity | Inspect assumptions, API use, units, docs and continuous/discrete equations | Docs and reviews; MATLAB model illustrative |
-| L1 — portable host tests | Exercise estimator/PID/arming, gyro calibration, timer wrap, invalid samples and saturation | GitHub Actions GCC + UBSan; separate theoretical simulator tests |
+| L1 — portable host tests | Exercise estimator/PID/arming, bounded pitch targets, gyro calibration, timer wrap, obstacle policy, invalid samples and saturation | GitHub Actions GCC + UBSan; separate theoretical simulator tests |
 | L2 — target build / emulator | Compile complete TM4C123 TivaWare image, verify startup and link | **Missing** |
 | L3 — instrumented benchtop | Verify power/current/logic/timing without balancing | **Missing** |
 | L4 — restrained closed-loop | Controlled low-energy motor/polarity and pitch tests | **Missing** |
