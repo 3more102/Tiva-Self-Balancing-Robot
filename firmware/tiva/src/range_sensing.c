@@ -143,10 +143,11 @@ static void copy_reading(const RangeChannel *channel, uint32_t now_ms,
                          uint32_t max_age_ms, RangeReading *reading)
 {
     uint32_t age_ms;
+    if (reading == NULL) return;
     reading->valid = false;
     reading->distance_mm = 0U;
     reading->sample_ms = 0U;
-    if (channel == NULL || reading == NULL || !channel->has_sample) return;
+    if (channel == NULL || !channel->has_sample) return;
 
     age_ms = (uint32_t)(now_ms - channel->last_sample_ms);
     reading->distance_mm = channel->distance_mm;
