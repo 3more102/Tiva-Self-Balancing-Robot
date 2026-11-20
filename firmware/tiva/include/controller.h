@@ -11,6 +11,7 @@
 #define BALANCE_ARM_ANGLE_DEG 8.0f
 #define BALANCE_ARM_SAMPLE_COUNT 40U /* 200 ms at the planned 200 Hz rate */
 #define BALANCE_MAX_DT_S 0.020f
+#define BALANCE_MAX_TARGET_ANGLE_DEG 3.0f /* provisional travel lean limit */
 
 typedef struct {
     float angle_deg;
