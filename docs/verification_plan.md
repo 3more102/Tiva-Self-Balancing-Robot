@@ -25,11 +25,13 @@
 | C-06 | Release, 40 upright held samples, tilt trip, release/rearm | Transitions exactly as specified | Automated |
 | C-07 | Gyro bias calibration: switch, motion, 200 valid samples and noise bounds | No completion for unstable/noisy samples | Automated host C tests; hardware pending |
 | C-08 | Timer1 unsigned downcounter wrap, 5 ms acceptance, timing outliers | Accept good clock ticks, reject abnormal interval | Automated host C tests; target timing unverified |
+| C-09 | Commanded pitch target above and below allowed range | Controller clamps outer-loop target to ±3° | Automated host C tests |
 | S-01 | Theoretical pitch-only PD / open-loop regression | Internally consistent numerical results | Automated Python, **not measured robot data** |
 | N-01 | Invalid/stale front range and autonomy disable | Travel request remains zero | Automated host C tests |
 | N-02 | Three distinct clear samples and side-clearance turn selection | Cruise only after confirmations; no turn without a fresh clear side | Automated host C tests |
 | N-03 | Timed-turn front-data timeout and post-turn re-verification | Stop on stale front data; verify clearance before cruise | Automated host C tests |
 | N-04 | uint32 millisecond timestamp rollover and stale side readings | Freshness remains correct across wrap; stale sides cannot authorize a turn | Automated host C tests |
+| N-05 | Failed turn followed by retry with opposite side clear/blocked | Retry only on the opposite side with fresh verified clearance; otherwise remain stopped | Automated host C tests |
 | D-01 | Check relative Markdown links and code fences | No broken links, balanced fences | Automated |
 | T-01 | Compile all embedded source with CCS for TM4C123 | No target compiler/link errors | **Not tested** |
 | T-02 | Inspect GPIO levels / power without motors connected | PA5 LOW, safe pin voltages | **Not tested** |
@@ -40,6 +42,7 @@
 | T-07 | Physical switch/debounce and safe arming | No surprise motor activation, including reset while held | **Not tested** |
 | T-08 | Sensor unplug, transient NACK, CPU fault/brownout | Measured safe motor cutoff; independent hardware containment | **Not tested** |
 | T-09 | Motor rotation/polarity with suspended wheels, qualified supply | Each channel matches signed command, no over-current | **Not tested** |
+| T-10 | WDOG0 deliberate-stall test with motor battery disconnected | A foreground stall causes reset after the second timeout; STBY remains low across reset | **Not tested** |
 | R-01 | Restrained moderate tilt recovery | No positive feedback runaway; documented response | **Not tested** |
 | R-02 | Repeated balance runs | Actual logs/metrics linked to measured datasets | **Not tested** |
 
@@ -47,7 +50,7 @@
 
 1. Confirm mechanical restraint, physical motor-battery disconnect, fuse, safe wiring and suitable driver rating.
 2. Keep the motor driver supply isolated when first flashing and testing sensor, switch, timers and LEDs.
-3. Measure GPIO with a scope/meter **before** connecting the driver supply. Verify STBY low at startup and reset.
+3. Measure GPIO with a scope/meter **before** connecting the driver supply. Verify STBY remains low at startup and reset; confirm the actual TB6612FNG module's internal STBY pull-down or add an external one if absent/uncertain.
 4. Test motor direction individually at very low duty with wheels raised; record axis/sign truth table.
 5. Select conservative controller gains based on a measured model. Do not rely on constants shown as initial placeholders.
 6. Only proceed to restrained balancing after hardware cutoff works independently of the MCU software.
@@ -59,6 +62,7 @@
 - [ ] Current limiting, supply brownout and stall current verification
 - [ ] Reproducible CCS build (compiler/TivaWare version, startup and linker files)
 - [ ] Real waveform captures for MCU GPIO, I2C, PWM and STBY
+- [ ] WDOG0 deliberate-stall reset capture and STBY-low verification
 - [ ] Raw timing, safety and sensor captures (software calculations are not measured timing profiles)
 - [ ] Recorded measured plant parameters
 - [ ] Control gain derivation and validation on real robot
