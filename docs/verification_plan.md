@@ -40,7 +40,8 @@
 | T-07 | Physical switch/debounce and safe arming | No surprise motor activation, including reset while held | **Not tested** |
 | T-08 | Sensor unplug, transient NACK, CPU fault/brownout | Measured safe motor cutoff; independent hardware containment | **Not tested** |
 | T-09 | Motor rotation/polarity with suspended wheels, qualified supply | Each channel matches signed command, no over-current | **Not tested** |
-| T-10 | Optional range backend: verify 10 µs trigger, Echo level, both-edge timing, three-sensor cross-talk and measured distance | Scope traces and known-distance repeatability; backend remains disabled until qualified | **Not tested** |
+| T-10 | Characterize current disabled GPIO-interrupt range prototype: trigger pulse, Echo logic level, ISR edge latency, missed/coalesced edges, cross-talk and known distances | Scope/logic-analyzer evidence and repeated distance measurements; this prototype is not accepted as hardware CCP capture | **Not tested** |
+| T-13 | Implement and verify GPTM CCP edge-time capture on the candidate PD2/PD3/PD6 inputs | Target build; rising/falling capture traces; measured pulse-width error and rollover behavior; no missed edges at accepted pulse widths | **Not implemented / not tested** |
 | T-11 | Measure 200 Hz balance-loop timing with 50 Hz TinyML shadow inference enabled | Control dt and execution time stay within qualified deadline margins | **Not tested** |
 | T-12 | With motor supply physically disconnected, deliberately stall foreground after WDOG0 initialization; measure first timeout and second-timeout reset; verify STBY stays low through reset | Measured reset timing, no unexpected normal-operation reset, and safe STBY state documented against commit SHA | **Not tested** |
 | R-01 | Restrained moderate tilt recovery | No positive feedback runaway; documented response | **Not tested** |
