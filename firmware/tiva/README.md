@@ -15,7 +15,7 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 ## 2. Building the draft
 
 1. Import/create a CCS target project for the exact TM4C123GH6PM. Verify the official example builds and flashes first.
-2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, and `src/diagnostics.c`; do **not** compile helper headers as separate units. They are locally included by `main.c`.
+2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, `src/diagnostics.c`, `src/imu_decode.c`, `src/navigation.c`, `src/range_capture.c`, `src/range_scanner.c`, `src/range_navigation.c`, `src/range_acquisition.c`, `src/ai_navigation.c`, `src/ai_inference.c`, and `src/ai_range_adapter.c`; do **not** compile helper headers as separate units. The IMU and motor backend headers are locally included by `main.c`. The rule-based navigation policy is called by `main.c`; the TinyML model runs at 50 Hz in shadow mode after the balance command and is diagnostic-only. The portable range-capture, three-sensor scanner, scanner-to-navigation adapter and hardware-callback acquisition coordinator are host-tested but are not yet called by main.c. They still need a TivaWare backend and physical pin mapping. Autonomy remains disabled until range acquisition and a separate operator enable are implemented.
 3. Add `include` and the TivaWare root to include directories, and link the correct version of the TivaWare driverlib.
 4. Enable appropriate Cortex-M4F FPU ABI/compiler settings and `math` routines (`atan2f`, `fabsf`, `isfinite`, `NAN`).
 5. **Do not alter `MOTOR_OUTPUT_ALLOWED 0`** during first sensor/logic tests. Verify STBY remains low.
@@ -32,7 +32,8 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 | User switch | PF4 | Onboard SW1, active low, hold-to-enable only after initial release |
 | Status | PF1 (red), PF2 (blue), PF3 (green) | Fault, disabled, enabled; unverified target |
 | Timer0A | No pin | 200 Hz desired periodic sample wake-up |
-| Timer1A | No pin | 32-bit free-running downcounter used to calculate elapsed control dt |
+| Timer1A | No pin | 80 MHz 32-bit free-running downcounter for elapsed control dt; `~TimerValueGet()` supplies an increasing tick timestamp to the portable range-capture core |
+| WDOG0 | No pin | System-clock watchdog; 50 ms first timeout, reset on second uncleared timeout; serviced by foreground code |
 
 Before using PWM, inspect the board's PB6↔PD0 and PB7↔PD1 hard links, board revision and pin mux for conflicts.
 
@@ -40,15 +41,26 @@ Before using PWM, inspect the board's PB6↔PD0 and PB7↔PD1 hard links, board 
 
 The pure C safety logic in `controller.c` starts DISARMED, requires a prior switch release, then 40 accepted upright samples (≤8°) while held before ARMED. On release it disarms. On ≥25° tip or invalid sample it faults until release with valid input. The application separately treats fatal IMU communication errors as latched until reset.
 
-The gyro offset is estimated only after 200 **consecutive** valid, stationary, upright samples with SW1 released, subject to the provisional sample-variance limit and a nominal 10-second startup attempt window. Timer1A measures elapsed per-cycle dt; the software rejects loops outside the provisional 2.5–8 ms window. **Neither real timing nor sensor noise has been measured on a board.** A complementary filter combines `atan2(ay, az)` with bias-corrected gyro X. The PID controller clamps command to ±0.7 and avoids integral windup.
+The pitch-X and yaw-Z gyro offsets are estimated together only after 200 **consecutive** valid, stationary, upright samples with SW1 released, subject to provisional sample-variance limits and a nominal 10-second startup attempt window. Timer1A measures elapsed per-cycle dt; the software rejects loops outside the provisional 2.5–8 ms window. **Neither real timing nor sensor noise has been measured on a board.** A complementary filter combines `atan2(ay, az)` with bias-corrected gyro X. The PID controller clamps command to ±0.7, limits commanded pitch targets to ±3° and avoids integral windup; all gains/limits remain provisional.
 
 **Polarity flags in `main.c` are provisional.** Verify both motors and sensor signs with wheels raised and power limited before enabling driver output.
 
-## 5. Important limits
+## 5. Obstacle navigation and AI status
+
+The portable front/left/right navigation policy is in `src/navigation.c`; the range-capture, scanner, scanner-to-navigation adapter and hardware-callback acquisition coordinator are portable and host-tested. They are not yet connected to TivaWare GPIO/CCP capture or physical sensors. The main loop calls the rule-based navigation policy and runs the 5-12-8-5 TinyML model at 50 Hz in shadow mode after the balance command. The AI uses the same `NavigationInput` contract through `ai_range_adapter.c` and calibrated yaw-Z rate; its output is exposed in CCS watch variables and cannot change motor PWM or targets.
+
+Range acquisition is not yet connected to `main.c`, so all range inputs remain invalid. The AI inference gate follows the balance-armed state and is independent of `navigation_input.autonomy_enabled`; the AI safety shield therefore returns STOP on invalid front data, without evaluating live sensor data. The physical sensor pin map and separate operator autonomy-enable input remain outstanding. See [AI architecture](../../docs/ai_architecture.md), [obstacle avoidance design](../../docs/obstacle_avoidance.md), [range-capture engine](../../docs/range_capture.md) and [three-sensor scanner / acquisition coordinator](../../docs/range_scanner.md).
+
+## 6. Watchdog supervision
+
+WDOG0 is configured from the 80 MHz system clock with a 50 ms first timeout and reset enabled on the second timeout if the first interrupt flag is not cleared. The foreground calls `watchdog_service()` after setup stages, completed calibration samples and control-loop paths; a stalled wait, IMU transaction or control path therefore stops servicing it. `WatchdogStallEnable()` pauses WDOG0 while the debugger halts the CPU. This is source-level supervision only: the target has not been compiled or tested, and WDOG0 does not protect against failure of the system clock. WDOG1 (PIOSC clock) or an external supervisor remains future work. See [watchdog reset and motor-output containment](../../docs/watchdog_safety.md).
+
+## 7. Important limits
 
 - Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing, CPU hangs and counter overflow/aliasing after ~53.7 s remain limitations.
 - I2C transaction handling has a software-bounded busy poll; timeouts, bus recovery, transaction sequencing and maximum duration still require real-target tests.
-- No wheel encoders, independent watchdog, UART logger, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist.
+- No wheel encoders, independent PIOSC-clocked watchdog (WDOG1), UART logger, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist. WDOG0 is integrated in source but its target behavior remains unverified.
+- The main loop calls the portable navigation policy and routes its pitch/yaw requests through the controller and differential mixer, but autonomy is hard-disabled and all range inputs remain invalid until a real sensor backend and operator enable are implemented.
 - Current MATLAB LQR is an illustrative comparison, not deployed code. Control gains are placeholders.
 - Software output gating does not substitute for power isolation and mechanical restraint.
 

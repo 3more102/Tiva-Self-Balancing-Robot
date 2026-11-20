@@ -47,7 +47,7 @@ flowchart TD
     STOP --> NEXT
 ```
 
-The firmware now computes `dt` using a Timer1A downcounter; it detects some early/late control intervals against provisional 2.5–8 ms bounds. However, actual real-time jitter, missed deadlines and worst-case execution time have **not** been measured on the board, and software cannot replace a hardware watchdog. Firmware motor output remains compile-time disabled. This diagram is a conceptual control flow, not proof of safe real-time timing.
+The firmware computes `dt` using a Timer1A downcounter and detects some early/late control intervals against provisional 2.5–8 ms bounds. WDOG0 is configured in source with a 50 ms first timeout and reset on the second uncleared timeout; it is serviced by foreground code but has not been target-tested and shares the system clock. Actual timing/jitter and worst-case execution time remain unmeasured. Firmware motor output remains compile-time disabled. This diagram is conceptual, not proof of safe real-time timing.
 
 ## 3. Power and interconnection diagram
 
@@ -86,7 +86,7 @@ stateDiagram-v2
     FAULT --> DISARMED : Switch released AND sensor data valid
 ```
 
-`imu_ok=false` is independently latched at application level; for a communication failure, hardware reset is required. **No safety state is a substitute for a physical power disconnect.** Debouncing and a hardware watchdog are not yet implemented.
+`imu_ok=false` is independently latched at application level; for a communication failure, hardware reset is required. WDOG0 supervision is implemented in source but still needs a target fault-injection test; it is system-clocked and does not replace a physical power disconnect. SW1 debouncing and independent-clock supervision remain unimplemented.
 
 ## 5. Proposed electrical mapping
 
@@ -114,3 +114,26 @@ Compare with [hardware/wiring.md](../hardware/wiring.md) and the [EK-TM4C123GXL 
 | Control analysis | MATLAB linear model and nominal 200 Hz discretization | MATLAB script | Validated physical parameters / log data |
 | Stage 1 architecture | These Mermaid diagrams, pin map, component responsibilities | This document | Reviewed electrical schematic |
 | Mechanical integration | Two-wheel chassis model | Concept | CAD, dimensions, center of mass |
+
+
+## 7. Obstacle-avoidance extension
+
+The portable navigation policy is an outer motion-request layer. It consumes timestamped front/left/right range samples and returns a pitch target and differential yaw bias. The 200 Hz balance controller remains the inner loop and retains authority over the motor command.
+
+See [obstacle avoidance design and verification](obstacle_avoidance.md) for thresholds, state transitions and limitations. The software policy is host-tested and is called from main.c; its pitch/yaw requests pass through the target-angle balance controller and differential motor mixer. Autonomy remains disabled with invalid placeholder range inputs until a TivaWare range-sensor driver, confirmed sensor pinout and operator enable path are implemented. The policy's timed turn and lean requests are open-loop because wheel encoders are not currently part of the hardware design.
+
+```mermaid
+flowchart TD
+    FRONT["Front range"] --> VALID["Freshness + validity"]
+    LEFT["Left range"] --> VALID
+    RIGHT["Right range"] --> VALID
+    VALID --> NAV["Navigation state machine"]
+    NAV --> PITCH["Pitch reference"]
+    NAV --> YAW["Yaw bias"]
+    IMU["MPU6050"] --> BAL["Balance controller"]
+    PITCH --> BAL
+    BAL --> MIX["Differential motor mixer"]
+    YAW --> MIX
+    MIX --> DRIVER["TB6612FNG"]
+    DRIVER --> MOTORS["Left + right wheels"]
+```

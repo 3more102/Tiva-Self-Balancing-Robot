@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.5.0 — 2026-11-20 — GyroGuard TinyML integration candidate
+
+- Port the native-C 5-12-8-5 TinyML model, synthetic training pipeline,
+  exported weights and host tests onto the modular range-acquisition branch.
+- Add `ai_range_adapter.c` to map the canonical `NavigationInput` contract
+  into the AI sensor frame without duplicating the range-capture stack.
+- Integrate 50 Hz AI shadow inference after the 200 Hz balance command and
+  expose action, confidence, safety override and calibrated yaw-Z rate as
+  CCS watch variables. The inference gate follows the balance-armed state and
+  is independent of rule-based navigation autonomy; AI has no actuator authority.
+- Extend stationary calibration to estimate pitch-X and yaw-Z gyro biases.
+- Add CI for MPU6050 axis decoding, AI adapter tests, TinyML inference,
+  classification metrics and a training smoke test.
+- Add AI architecture and branch integration documentation.
+- **Host validation:** integrated CI run [44779316855](https://github.com/3more102/Tiva-Self-Balancing-Robot/actions/runs/44779316855) passed strict GCC, UBSan, navigation/range/AI tests, Python metrics and training smoke test, simulation and documentation links.
+- **Limitations:** range acquisition is not wired into `main.c`; range inputs
+  remain invalid and operator autonomy is disabled. The AI safety shield
+  currently returns STOP and has not evaluated live sensor data. No CCS/TivaWare
+  target build, physical balancing or physical obstacle-avoidance result is claimed.
+
+
+## 0.4.0 — 2026-11-20 — Obstacle-avoidance software foundation
+
+- Add a portable front/left/right range-navigation policy with stale-sample checks, verified-side selection, bounded timed turns and post-turn clearance confirmation.
+- Add a target-angle balance-controller API and differential wheel command mixing while preserving the balance command under saturation.
+- Connect the navigation command path in the Tiva main loop; autonomy remains hard-disabled and range inputs remain invalid until the hardware acquisition backend and operator enable are implemented.
+- Add host tests for navigation state transitions, timestamp freshness, timestamp rollover, stale-side rejection and turn interruption; GitHub Actions runs strict GCC and UBSan checks.
+- No TivaWare range driver, confirmed sensor pinout, target build or physical obstacle-avoidance result is claimed.
+
+
 ## 0.3.0 — 2026-10-23 — Calibration, timing diagnostics and theoretical-model validation
 
 - Add portable stationary gyro bias / variance calibration with Welford accumulation and 200-sample acceptance; integrate startup timeout in Tiva MCU source.

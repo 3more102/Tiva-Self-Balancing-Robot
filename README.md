@@ -34,6 +34,8 @@ flowchart LR
 
 **Explore the engineering diagrams:** [Complete hardware/system diagrams](docs/architecture.md) · [Control theory and formulas](docs/control_theory.md) · [Wiring / pinout](hardware/wiring.md) · [Selection and power budget](docs/component_selection.md)
 
+**Obstacle avoidance + AI:** [Policy and hardware integration plan](docs/obstacle_avoidance.md) · [GyroGuard TinyML architecture](docs/ai_architecture.md). The rule-based navigation policy, [ultrasonic echo-capture core](docs/range_capture.md), [three-sensor scheduler](docs/range_scanner.md), scanner-to-navigation adapter and hardware-callback acquisition coordinator are host-tested. Native-C TinyML inference is integrated at 50 Hz in shadow mode; the TivaWare sensor backend, live sensor wiring and physical navigation remain pending.
+
 ## Hardware platform and architecture
 
 | Item | Planned component | Reason / caveat |
@@ -44,6 +46,7 @@ flowchart LR
 | Actuation | Two brushed DC geared motors | Exact gear ratio, torque and current **TBD** |
 | Structure | Two wheels + supported vertical chassis | Mass, inertia, wheel radius and COM **TBD** |
 | Supply | Battery, regulator, fuse and accessible motor cutoff | Values and schematic **TBD**; never power motors from MCU pins |
+| Range sensing | Three front/left/right ultrasonic readings (proposed) | Portable capture and sequential scanner are host-tested; exact modules, pinout and TivaWare adapter **TBD** |
 
 **Planned signal map:** I²C0: PB2/PB3; PWM: PB6/PB7; motor direction: PC4–PC7; driver STBY: PA5; SW1: PF4. Board-specific shared pins and voltage warnings are detailed in [hardware/wiring.md](hardware/wiring.md).
 
@@ -66,10 +69,13 @@ This is an **illustrative block diagram, not the electrical schematic** required
 - Complementary pitch estimator: `atan2(ay,az)` plus bias-corrected gyro integration (angular units: degrees and deg/s).
 - Nominal loop target: **200 Hz (5 ms)**; PWM: **20 kHz**. Timer1A downcounter now supplies elapsed per-cycle `dt` and software rejects cycles outside the provisional 2.5–8 ms range. **Real timing/jitter are not measured on hardware**.
 - PD/PID controller with conditional anti-windup and normalized output clamp `|u| ≤ 0.7`; gains are **not tuned for a physical robot**.
-- **Stationary gyro calibration:** 200 consecutive upright/released-switch samples, ±6° pitch, magnitude checks, 0.75 deg/s provisional gyro noise bound and Welford mean/variance accumulation. Calibration attempts time out into disabled state.
+- **Stationary dual-axis gyro calibration:** 200 consecutive upright/released-switch samples estimate pitch-X and yaw-Z gyro biases with independent Welford mean/variance checks, ±6° pitch, gravity-magnitude checks and a provisional 0.75 deg/s noise bound. Calibration attempts time out into disabled state.
 - Guard conditions on invalid sensor readings and invalid measured update intervals, including missed-sample faults.
 - **Release-to-arm** logic: observe switch release; require 40 consecutive upright sample checks (≤8°) with switch held, then allow the software command gate.
 - **Trip:** ≥25° pitch, sensor failure or invalid calculation -> disable the driver; fault requires release before rearming. A fatal I²C failure is latched until hardware reset.
+- **Obstacle sensing software:** portable front/left/right navigation policy, reusable ultrasonic echo-capture core and a three-sensor round-robin scheduler. Host tests cover pulse timing, timeouts, timer rollover, quiet-time enforcement, sample publication and one-active-sensor behavior; the TivaWare GPIO/timer adapter and physical pinout remain pending.
+- **WDOG0 supervision:** 50 ms system-clock first timeout and reset on the second uncleared timeout; serviced by foreground code after completed samples. Source-level only, not target-tested, and not independent of the system clock.
+- **GyroGuard TinyML:** native-C 5-12-8-5 inference with a separate software safety shield; runs at 50 Hz after the balance command in shadow mode only. The AI uses the rule-based `NavigationInput` contract and calibrated yaw-Z rate. Its shadow inference gate follows the balance-armed state and is separate from the rule-based operator-autonomy gate; however, range acquisition is not yet connected to `main.c`, so invalid front data forces STOP and live sensor inference is not yet demonstrated.
 - **Compile-time actuator interlock**: `MOTOR_OUTPUT_ALLOWED 0` is the default in `firmware/tiva/src/main.c`. Motor driver STBY remains LOW; code alone does **not** replace a motor-battery fuse, power switch or hardware cutoff.
 
 ```mermaid
@@ -84,7 +90,32 @@ stateDiagram-v2
   FAULT --> DISARMED: valid sensor + release
 ```
 
-**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
+**Safety and integration review:** [Firmware verification plan](docs/verification_plan.md) · [Integration sequence](docs/integration_sequence.md) · [AI architecture](docs/ai_architecture.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md) · [Watchdog safety](docs/watchdog_safety.md)
+
+## Obstacle avoidance — current software milestone
+
+The portable navigation module accepts fresh front, left and right distance samples and produces a small pitch target plus a differential yaw request. It stops on invalid/stale front data, refuses to turn unless a side has verified clearance, and requires three new clear front samples after a turn before cruising again. The `range_capture.c` engine measures ECHO pulse widths and rejects timeout/invalid results. The `range_scanner.c` scheduler selects front/left/right sequentially, enforces an inter-ping quiet interval and publishes timestamped valid/invalid samples. The `range_navigation.c` adapter maps those samples into `NavigationInput`, preserving the separate autonomy-enable gate. The `range_acquisition.c` coordinator schedules triggers and serializes scanner access through mockable hardware callbacks. These portable modules are host-tested but not yet wired into `main.c` or connected to a TivaWare hardware capture backend. Native-C AI inference now runs at 50 Hz in shadow mode after the balance command, using `ai_range_adapter.c` to consume `NavigationInput` and calibrated yaw-Z rate. The range inputs are still invalid and autonomy remains hard-disabled, so the AI returns STOP and has not yet evaluated live sensor data.
+
+- Policy source: **firmware/tiva/src/navigation.c**
+- Public interface: **firmware/tiva/include/navigation.h**
+- Host tests: **tests/test_navigation.c**
+- Range-capture interface: **firmware/tiva/include/range_capture.h**
+- Range-capture implementation: **firmware/tiva/src/range_capture.c**
+- Range-capture tests: **tests/test_range_capture.c**
+- Range-capture timing assumptions: **docs/range_capture.md**
+- Three-sensor scanner interface: **firmware/tiva/include/range_scanner.h**
+- Three-sensor scanner implementation: **firmware/tiva/src/range_scanner.c**
+- Three-sensor scanner tests: **tests/test_range_scanner.c**
+- Scanner design and timing assumptions: **docs/range_scanner.md**
+- Scanner-to-navigation adapter: **firmware/tiva/src/range_navigation.c**
+- Adapter interface: **firmware/tiva/include/range_navigation.h**
+- Adapter tests: **tests/test_range_navigation.c**
+- Acquisition coordinator: **firmware/tiva/src/range_acquisition.c**
+- Acquisition interface: **firmware/tiva/include/range_acquisition.h**
+- Coordinator tests: **tests/test_range_acquisition.c**
+- Design and hardware integration plan: **docs/obstacle_avoidance.md**
+
+The balance controller now has a target-angle API, and the motor backend has differential wheel mixing. The main Tiva application calls the navigation policy, but autonomy remains disabled and the range inputs remain invalid until the TivaWare range-sensor backend, physical sensor pinout and separate operator enable are implemented. No physical obstacle avoidance is claimed. With no wheel encoders, the initial lean and timed-turn commands are open-loop.
 
 ## Getting started
 
@@ -109,6 +140,38 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic \
     -lm -o test_diagnostics
 ./test_diagnostics
 python3 -m unittest discover -s tests -p 'test_simulation.py'
+
+gcc -std=c11 -Wall -Wextra -Werror -pedantic \
+    -Ifirmware/tiva/include \
+    firmware/tiva/src/navigation.c tests/test_navigation.c \
+    -lm -o /tmp/test_navigation
+/tmp/test_navigation
+
+gcc -std=c11 -Wall -Wextra -Werror -pedantic \
+    -Ifirmware/tiva/include \
+    firmware/tiva/src/range_capture.c tests/test_range_capture.c \
+    -o /tmp/test_range_capture
+/tmp/test_range_capture
+
+gcc -std=c11 -Wall -Wextra -Werror -pedantic \
+    -Ifirmware/tiva/include \
+    firmware/tiva/src/range_capture.c firmware/tiva/src/range_scanner.c \
+    tests/test_range_scanner.c -o /tmp/test_range_scanner
+/tmp/test_range_scanner
+
+gcc -std=c11 -Wall -Wextra -Werror -pedantic \
+    -Ifirmware/tiva/include \
+    firmware/tiva/src/navigation.c firmware/tiva/src/range_capture.c \
+    firmware/tiva/src/range_scanner.c firmware/tiva/src/range_navigation.c \
+    tests/test_range_navigation.c -lm -o /tmp/test_range_navigation
+/tmp/test_range_navigation
+
+gcc -std=c11 -Wall -Wextra -Werror -pedantic \
+    -Ifirmware/tiva/include \
+    firmware/tiva/src/range_capture.c firmware/tiva/src/range_scanner.c \
+    firmware/tiva/src/range_navigation.c firmware/tiva/src/range_acquisition.c \
+    tests/test_range_acquisition.c -o /tmp/test_range_acquisition
+/tmp/test_range_acquisition
 ```
 
 GitHub Actions also runs these **host-side** checks after pushes and pull requests. Their success **does not establish a working Tiva firmware build or safe motor actuation**.
@@ -117,7 +180,7 @@ GitHub Actions also runs these **host-side** checks after pushes and pull reques
 
 1. Install TI [Code Composer Studio](https://www.ti.com/tool/CCSTUDIO) and [EK-TM4C123GXL board resources / TivaWare](https://www.ti.com/tool/EK-TM4C123GXL).
 2. Start from a **working TivaWare example** for the exact `TM4C123GH6PM` target to obtain the correct startup file, linker configuration, compiler options and driverlib link library.
-3. Add `firmware/tiva/src/main.c`, `controller.c` and `diagnostics.c`, include `firmware/tiva/include`, and configure TI TivaWare library/include paths.
+3. Add `firmware/tiva/src/main.c`, `controller.c`, `diagnostics.c`, `navigation.c`, `range_capture.c`, `range_scanner.c`, `range_navigation.c` and `range_acquisition.c`, include `firmware/tiva/include`, and configure TI TivaWare library/include paths. The portable range modules are host-tested but not yet connected to main.c; the TivaWare GPIO/timer adapter, sensor pinout and separate operator enable are still pending.
 4. Build and test with **motors unpowered**, confirming sensor reads, GPIO voltage, clock, real timing and pin multiplexing.
 5. Do **not** enable `MOTOR_OUTPUT_ALLOWED` until the independent physical wiring/current/polarity review is completed.
 
@@ -146,8 +209,18 @@ Tiva-Self-Balancing-Robot/
 ├── firmware/tiva/
 │   ├── include/controller.h              # control/safety interfaces
 │   ├── include/diagnostics.h             # calibration + timing interfaces
+│   ├── include/navigation.h              # portable obstacle policy interface
+│   ├── include/range_capture.h           # portable ultrasonic capture interface
+│   ├── include/range_scanner.h           # three-sensor scheduler interface
+│   ├── include/range_navigation.h        # scanner-to-policy adapter interface
+│   ├── include/range_acquisition.h       # hardware-callback acquisition interface
 │   ├── src/controller.c                  # estimator, PID and safety machine
 │   ├── src/diagnostics.c                 # stationary gyro calibration / timing
+│   ├── src/navigation.c                 # fail-safe obstacle policy
+│   ├── src/range_capture.c              # non-blocking ultrasonic echo capture
+│   ├── src/range_scanner.c              # sequential front/left/right scheduler
+│   ├── src/range_navigation.c           # maps scanner results to navigation input
+│   ├── src/range_acquisition.c          # non-blocking scanner / hardware coordinator
 │   ├── src/main.c                        # TivaWare 200 Hz application
 │   ├── src/imu_backend.h                 # MPU6050 I2C functions
 │   ├── src/motor_backend.h               # TB6612FNG direction / PWM / STBY
@@ -169,6 +242,9 @@ Tiva-Self-Balancing-Robot/
 │   ├── experimental_protocol.md          # separate measured vs simulated data
 │   ├── component_selection.md            # motor/driver/supply worksheet
 │   ├── optimization_and_design_review.md # implemented vs planned work
+│   ├── watchdog_safety.md                # WDOG0 reset behavior and STBY containment
+│   ├── range_capture.md                  # ultrasonic capture timing and integration
+│   ├── range_scanner.md                  # sequential three-sensor scheduler
 │   ├── verification_plan.md             # before-power-on / bench criteria
 │   ├── assignment_checklist.md           # official submission requirements
 │   └── reports/
@@ -177,6 +253,11 @@ Tiva-Self-Balancing-Robot/
 │       └── STAGE3_final_report.md
 ├── tests/test_controller.c               # host-side estimator/PID/safety tests
 ├── tests/test_diagnostics.c              # calibration & timer-wrap tests
+├── tests/test_navigation.c              # obstacle policy and freshness tests
+├── tests/test_range_capture.c           # echo pulse / timeout / rollover tests
+├── tests/test_range_scanner.c           # three-sensor sequencing / publication tests
+├── tests/test_range_navigation.c        # scanner-to-navigation mapping tests
+├── tests/test_range_acquisition.c       # mock hardware coordinator tests
 ├── tests/test_simulation.py              # theoretical model assertions
 ├── .github/workflows/host-tests.yml
 └── tools/publish_github.ps1
@@ -194,9 +275,9 @@ Tiva-Self-Balancing-Robot/
 
 ## What can be claimed today?
 
-**Implemented in source:** portable C pitch estimator, guarded PD/PID, safety state machine, gyro calibration, Timer1 elapsed-period guard, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
-**Verified:** host-side regression tests and deterministic simulation checks, based on GitHub Actions when green.  
-**Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, actual stationary IMU calibration, sampling timing, assembled robot, balancing, physical protection, measured telemetry and hardware performance.
+**Implemented in source:** portable C pitch estimator, guarded PD/PID with ±3° commanded pitch-target limit, safety state machine, gyro calibration, Timer1 elapsed-period guard, WDOG0 foreground supervision, portable obstacle policy, differential motor mixer, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
+**Host verification:** GitHub Actions passes strict GCC builds, controller/diagnostics/navigation tests, UBSan checks, theoretical simulation tests and documentation-link checks on this development branch.  
+**Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, TivaWare range-sensor GPIO/timer adapter and physical pinout, scanner integration in `main.c`, TivaWare GPIO/NVIC backend, actual stationary IMU calibration, sampling timing, assembled robot, physical protection, measured telemetry, real balancing or physical obstacle avoidance.
 
 ## References
 
@@ -205,5 +286,6 @@ Tiva-Self-Balancing-Robot/
 3. [TI, EK-TM4C123GXL user manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf)
 4. [TDK InvenSense, MPU-6000/MPU-6050 Register Map and Descriptions](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Register-Map1.pdf)
 5. [Toshiba, TB6612FNG motor driver](https://toshiba.semicon-storage.com/eu/semiconductor/product/motor-driver-ics/brushed-dc-motor-driver-ics/detail.TB6612FNG.html)
+6. [Toshiba, TB6612FNG datasheet](https://toshiba.semicon-storage.com/info/TB6612FNG_datasheet_en_20141001.pdf)
 
 **License:** no project license has been selected; please add one before inviting unrestricted reuse. Credit any third-party example startup files or imported material according to their licenses.
