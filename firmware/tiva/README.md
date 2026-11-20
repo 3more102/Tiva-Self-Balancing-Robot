@@ -38,7 +38,7 @@ Before using PWM, inspect the board's PB6↔PD0 and PB7↔PD1 hard links, board 
 
 ## 4. Range-sensor integration status
 
-The portable capture and scheduling layer is in `include/range_sensing.h` and `src/range_sensing.c`; `ai_sensor_adapter.c` maps a checked `RangeSnapshot` into the TinyML input frame. It uses a round-robin front/left/right schedule, a 60 ms inter-ping gap, a 12 ms echo timeout, pulse-width validation and caller-supplied freshness limits. Host tests cover pulse conversion, timeout, rollover, invalid pulses and freshness.
+The portable capture and scheduling layer is in `include/range_sensing.h` and `src/range_sensing.c`; `ai_sensor_adapter.c` maps a checked `RangeSnapshot` into the TinyML input frame. It uses a round-robin front/left/right schedule, a 60 ms inter-ping gap, a 13 ms echo timeout, pulse-width validation and caller-supplied freshness limits. Host tests cover pulse conversion, timeout, rollover, invalid pulses and freshness.
 
 **The physical Tiva adapter is not implemented.** The ultrasonic sensor model, its trigger/echo voltage requirements, exact pin assignments and timer/GPIO capture route are not known. Do not wire an assumed 5 V echo output directly to a Tiva GPIO. Confirm the module datasheet and use a suitable level shifter/divider where required before adding pin-specific code. See [range-sensing design](../../docs/range_sensing.md).
 
