@@ -138,7 +138,7 @@ GitHub Actions also runs these **host-side** checks after pushes and pull reques
 
 1. Install TI [Code Composer Studio](https://www.ti.com/tool/CCSTUDIO) and [EK-TM4C123GXL board resources / TivaWare](https://www.ti.com/tool/EK-TM4C123GXL).
 2. Start from a **working TivaWare example** for the exact `TM4C123GH6PM` target to obtain the correct startup file, linker configuration, compiler options and driverlib link library.
-3. Add `firmware/tiva/src/main.c`, `controller.c` and `diagnostics.c`, include `firmware/tiva/include`, and configure TI TivaWare library/include paths.
+3. Add `firmware/tiva/src/main.c`, `controller.c`, `diagnostics.c` and `navigation.c`, include `firmware/tiva/include`, and configure TI TivaWare library/include paths. The navigation module is portable C; the Tiva range-sensor backend and main-loop connection are still pending.
 4. Build and test with **motors unpowered**, confirming sensor reads, GPIO voltage, clock, real timing and pin multiplexing.
 5. Do **not** enable `MOTOR_OUTPUT_ALLOWED` until the independent physical wiring/current/polarity review is completed.
 
