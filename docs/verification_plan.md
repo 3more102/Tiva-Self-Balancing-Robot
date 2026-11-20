@@ -1,6 +1,6 @@
 # Verification and acceptance test plan
 
-**Scope:** Requirements and reproducibility plan. As of 23 Oct 2026 **no actual Tiva hardware acceptance test has been reported**. Do not check off hardware tests based on the host-only C test suite.
+**Scope:** Requirements and reproducibility plan. WDOG0 foreground supervision is now integrated in the firmware source, but **no actual Tiva hardware acceptance test has been reported**. Do not check off hardware tests based on the host-only C test suite.
 
 ## Verification hierarchy
 
@@ -42,6 +42,7 @@
 | T-09 | Motor rotation/polarity with suspended wheels, qualified supply | Each channel matches signed command, no over-current | **Not tested** |
 | T-10 | Optional range backend: verify 10 µs trigger, Echo level, both-edge timing, three-sensor cross-talk and measured distance | Scope traces and known-distance repeatability; backend remains disabled until qualified | **Not tested** |
 | T-11 | Measure 200 Hz balance-loop timing with 50 Hz TinyML shadow inference enabled | Control dt and execution time stay within qualified deadline margins | **Not tested** |
+| T-12 | With motor supply physically disconnected, deliberately stall foreground after WDOG0 initialization; measure first timeout and second-timeout reset; verify STBY stays low through reset | Measured reset timing, no unexpected normal-operation reset, and safe STBY state documented against commit SHA | **Not tested** |
 | R-01 | Restrained moderate tilt recovery | No positive feedback runaway; documented response | **Not tested** |
 | R-02 | Repeated balance runs | Actual logs/metrics linked to measured datasets | **Not tested** |
 
