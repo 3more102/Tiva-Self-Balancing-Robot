@@ -15,7 +15,7 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 ## 2. Building the draft
 
 1. Import/create a CCS target project for the exact TM4C123GH6PM. Verify the official example builds and flashes first.
-2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, `src/diagnostics.c`, and `src/imu_decode.c`; do **not** compile helper headers as separate units. They are locally included by `main.c`.
+2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, `src/diagnostics.c`, `src/imu_decode.c`, `src/range_sensing.c`, `src/ai_sensor_adapter.c`, `src/ai_inference.c`, and `src/ai_navigation.c`; do **not** compile helper headers as separate units. They are locally included by `main.c`.
 3. Add `include` and the TivaWare root to include directories, and link the correct version of the TivaWare driverlib.
 4. Enable appropriate Cortex-M4F FPU ABI/compiler settings and `math` routines (`atan2f`, `fabsf`, `isfinite`, `NAN`).
 5. **Do not alter `MOTOR_OUTPUT_ALLOWED 0`** during first sensor/logic tests. Verify STBY remains low.
@@ -38,9 +38,11 @@ Before using PWM, inspect the board's PB6↔PD0 and PB7↔PD1 hard links, board 
 
 ## 4. Range-sensor integration status
 
-The portable capture and scheduling layer is in `include/range_sensing.h` and `src/range_sensing.c`; `ai_sensor_adapter.c` maps a checked `RangeSnapshot` into the TinyML input frame. It uses a round-robin front/left/right schedule, a 60 ms inter-ping gap, a 13 ms echo timeout, pulse-width validation and caller-supplied freshness limits. Host tests cover pulse conversion, timeout, rollover, invalid pulses and freshness.
+The portable capture/scheduling layer is in `include/range_sensing.h` and `src/range_sensing.c`; `ai_sensor_adapter.c` maps a checked `RangeSnapshot` into the TinyML input frame. It uses a round-robin front/left/right schedule, a 60 ms inter-ping gap, a 13 ms echo timeout, pulse-width validation and freshness limits. Host tests cover pulse conversion, timeout, 80 MHz timer ticks, rollover, invalid pulses and freshness.
 
-**The physical Tiva adapter is not implemented.** The ultrasonic sensor model, its trigger/echo voltage requirements, exact pin assignments and timer/GPIO capture route are not known. Do not wire an assumed 5 V echo output directly to a Tiva GPIO. Confirm the module datasheet and use a suitable level shifter/divider where required before adding pin-specific code. See [range-sensing design](../../docs/range_sensing.md).
+An **optional HC-SR04-compatible Tiva adapter** is present in `src/range_backend.h`, but `RANGE_HCSR04_BACKEND_ENABLED` defaults to `0`. When explicitly enabled, it uses PE0/PE1 (front TRIG/ECHO), PE2/PE3 (left), PE4/PE5 (right), Timer2A for a 10 µs trigger pulse and Port E both-edge interrupts for echo capture. Timer1A supplies the 80 MHz timestamp counter. The LaunchPad pin availability is documented in the [TI board manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf).
+
+**Do not enable this adapter until your actual sensor model and wiring are confirmed.** A 5 V Echo output must be level-shifted before reaching a TM4C GPIO. The adapter has not been compiled with your TivaWare installation or tested on a board. With the default disabled setting, the range readings remain invalid and the AI correctly reports STOP. See [range-sensing design](../../docs/range_sensing.md).
 
 ## 5. State machine and control
 
@@ -51,12 +53,14 @@ Pitch gyro X and vertical/yaw gyro Z offsets are estimated only after 200 **cons
 **Polarity flags in `main.c` are provisional.** Verify both motors and sensor signs with wheels raised and power limited before enabling driver output.
 
 
-The MPU6050 burst decoder is kept in portable src/imu_decode.c and is
+The MPU6050 burst decoder is kept in portable `src/imu_decode.c` and is
 host-tested independently. The target backend reads gyro X for pitch control
-and gyro Z (the documented vertical axis) for yaw-rate sensing. Both gyro
-biases are calibrated together while the robot is stationary and SW1 is
-released. The current main loop does not yet feed range measurements into the
-AI or mix AI turn requests into the motor command.
+and gyro Z for vertical-axis yaw sensing; both biases are calibrated together.
+The main loop now builds a range/yaw input frame and runs TinyML inference at
+50 Hz in **shadow mode**. Inspect `g_ai_action_debug`,
+`g_ai_confidence_debug`, `g_ai_safety_override_debug`, and
+`g_yaw_rate_debug_dps` in CCS. The action is deliberately not connected to
+the balance target or motor mixer; `MOTOR_OUTPUT_ALLOWED` remains zero.
 
 ## 6. Important limits
 
