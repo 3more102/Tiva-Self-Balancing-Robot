@@ -5,12 +5,12 @@
 #include "range_sensing.h"
 
 static void complete_echo(RangeArray *array, uint8_t sensor,
-                          uint32_t rise_us, uint32_t pulse_us,
+                          uint32_t rise_ticks, uint32_t pulse_ticks,
                           uint32_t sample_ms)
 {
-    range_array_echo_edge(array, sensor, true, rise_us, sample_ms);
+    range_array_echo_edge(array, sensor, true, rise_ticks, sample_ms);
     range_array_echo_edge(array, sensor, false,
-                          rise_us + pulse_us, sample_ms);
+                          rise_ticks + pulse_ticks, sample_ms);
 }
 
 static void test_front_measurement_and_conversion(void)
@@ -150,6 +150,30 @@ static void test_80mhz_counter_tick_scaling(void)
     assert(snapshot.front.distance_mm == 343U);
 }
 
+
+static void test_high_frequency_timer_ticks(void)
+{
+    RangeArray array;
+    RangeSnapshot snapshot;
+    uint32_t rise_ticks;
+    range_array_init(&array, 80U); /* 80 MHz free-running timer. */
+
+    assert(range_array_next_trigger(&array, 10U, 800000U) == RANGE_FRONT);
+    rise_ticks = 808000U; /* 100 us after trigger */
+    complete_echo(&array, RANGE_FRONT, rise_ticks, 160000U, 11U);
+    range_array_snapshot(&array, 11U, 250U, 750U, &snapshot);
+    assert(snapshot.front.valid);
+    assert(snapshot.front.distance_mm == 343U);
+
+    range_array_init(&array, 80U);
+    assert(range_array_next_trigger(&array, 10U, 800000U) == RANGE_FRONT);
+    range_array_poll(&array, 1839999U);
+    assert(array.active_sensor == RANGE_FRONT);
+    range_array_poll(&array, 1840000U);
+    assert(array.active_sensor == RANGE_SENSOR_NONE);
+    assert(array.channel[RANGE_FRONT].timeout_count == 1U);
+}
+
 static void test_failed_hardware_trigger_can_be_cancelled(void)
 {
     RangeArray array;
@@ -170,6 +194,7 @@ int main(void)
     test_invalid_pulse_does_not_replace_last_good_sample();
     test_timer_rollover_and_snapshot_staleness();
     test_minimum_echo_and_model_range_cap();
+    test_high_frequency_timer_ticks();
     test_80mhz_counter_tick_scaling();
     test_failed_hardware_trigger_can_be_cancelled();
     puts("PASS: asynchronous range capture, timeout, scheduling and freshness tests");
