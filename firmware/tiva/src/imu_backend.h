@@ -1,4 +1,5 @@
 /* Internal implementation included only by main.c. Requires TivaWare includes/macros. */
+#include "imu_decode.h"
 static bool i2c_finish(uint32_t command)
 {
     uint32_t tries = I2C_TIMEOUT_LOOPS;
@@ -37,25 +38,25 @@ static bool mpu_read(uint8_t reg, uint8_t *buffer, uint32_t n)
     return true;
 }
 
-static int16_t i16_be(const uint8_t *bytes)
-{
-    return (int16_t)(((uint16_t)bytes[0] << 8U) | bytes[1]);
-}
-
-/* +X axis parallel to axle, +Y forward and +Z up when robot upright. */
+/* +X axis parallel to axle, +Y forward and +Z up when robot upright.
+ * The portable decoder keeps signed big-endian parsing host-testable. */
 static bool mpu_sample(float *ay_g, float *az_g, float *gx_dps,
-                      float *gz_dps)
+                       float *gz_dps)
 {
     uint8_t bytes[14];
-    if (!mpu_read(MPU6050_ACCEL_XOUT_H, bytes, 14U)) return false;
-    *ay_g = (float)i16_be(&bytes[2]) / 16384.0f;
-    *az_g = (float)i16_be(&bytes[4]) / 16384.0f;
-    *gx_dps = (float)i16_be(&bytes[8]) / 131.0f;
-    if (gz_dps != 0)
-        *gz_dps = (float)i16_be(&bytes[12]) / 131.0f;
-    return isfinite(*ay_g) && isfinite(*az_g) &&
-           isfinite(*gx_dps) &&
-           (gz_dps == 0 || isfinite(*gz_dps));
+    Mpu6050Sample sample;
+
+    if (ay_g == NULL || az_g == NULL || gx_dps == NULL || gz_dps == NULL)
+        return false;
+    if (!mpu_read(MPU6050_ACCEL_XOUT_H, bytes, 14U) ||
+        !mpu6050_decode_sample(bytes, &sample))
+        return false;
+
+    *ay_g = sample.accel_y_g;
+    *az_g = sample.accel_z_g;
+    *gx_dps = sample.gyro_x_dps; /* pitch rate */
+    *gz_dps = sample.gyro_z_dps; /* vertical-axis yaw rate */
+    return true;
 }
 
 static bool imu_init(void)
