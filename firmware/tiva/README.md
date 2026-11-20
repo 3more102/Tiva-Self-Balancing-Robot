@@ -33,7 +33,7 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 | Status | PF1 (red), PF2 (blue), PF3 (green) | Fault, disabled, enabled; unverified target |
 | Timer0A | No pin | 200 Hz desired periodic sample wake-up |
 | Timer1A | No pin | 32-bit free-running downcounter used to calculate elapsed control dt |
-| Timer2A | No pin | One-shot 10 µs trigger pulse when the optional HC-SR04 backend is enabled |
+| Timer2A | No pin | One-shot 12 µs trigger pulse when the optional HC-SR04 backend is enabled |
 | GPIOE | PE0–PE5 | Optional front/left/right TRIG/ECHO pins; backend disabled by default |
 
 Before using PWM, inspect the board's PB6↔PD0 and PB7↔PD1 hard links, board revision and pin mux for conflicts.
@@ -42,7 +42,7 @@ Before using PWM, inspect the board's PB6↔PD0 and PB7↔PD1 hard links, board 
 
 The portable capture/scheduling layer is in `include/range_sensing.h` and `src/range_sensing.c`; `ai_sensor_adapter.c` maps a checked `RangeSnapshot` into the TinyML input frame. It uses a round-robin front/left/right schedule, a 60 ms inter-ping gap, a 13 ms echo timeout, pulse-width validation and freshness limits. Host tests cover pulse conversion, timeout, 80 MHz timer ticks, rollover, invalid pulses and freshness.
 
-An **optional HC-SR04-compatible Tiva adapter** is present in `src/range_backend.h`, but `RANGE_HCSR04_BACKEND_ENABLED` defaults to `0`. When explicitly enabled, it uses PE0/PE1 (front TRIG/ECHO), PE2/PE3 (left), PE4/PE5 (right), Timer2A for a 10 µs trigger pulse and Port E both-edge interrupts for echo capture. Timer1A supplies the 80 MHz timestamp counter. The LaunchPad pin availability is documented in the [TI board manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf).
+An **optional HC-SR04-compatible Tiva adapter** is present in `src/range_backend.h`, but `RANGE_HCSR04_BACKEND_ENABLED` defaults to `0`. When explicitly enabled, it uses PE0/PE1 (front TRIG/ECHO), PE2/PE3 (left), PE4/PE5 (right), Timer2A for a 12 µs trigger pulse and Port E both-edge interrupts for echo capture. Timer1A supplies the 80 MHz timestamp counter. The LaunchPad pin availability is documented in the [TI board manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf).
 
 **Do not enable this adapter until your actual sensor model and wiring are confirmed.** A 5 V Echo output must be level-shifted before reaching a TM4C GPIO. The adapter has not been compiled with your TivaWare installation or tested on a board. With the default disabled setting, the range readings remain invalid and the AI correctly reports STOP. See [range-sensing design](../../docs/range_sensing.md).
 
