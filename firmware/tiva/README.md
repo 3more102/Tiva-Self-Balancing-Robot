@@ -15,7 +15,7 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 ## 2. Building the draft
 
 1. Import/create a CCS target project for the exact TM4C123GH6PM. Verify the official example builds and flashes first.
-2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, `src/diagnostics.c`, and `src/navigation.c`; do **not** compile helper headers as separate units. The IMU and motor backend headers are locally included by `main.c`. The navigation policy is portable C and is called by `main.c`; autonomy remains disabled until range acquisition and a separate operator enable are implemented.
+2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, `src/diagnostics.c`, `src/navigation.c`, and `src/range_capture.c`; do **not** compile helper headers as separate units. The IMU and motor backend headers are locally included by `main.c`. The navigation policy is called by `main.c`; the portable range-capture module is not yet called by main.c and still needs a TivaWare GPIO/timer adapter. Autonomy remains disabled until range acquisition and a separate operator enable are implemented.
 3. Add `include` and the TivaWare root to include directories, and link the correct version of the TivaWare driverlib.
 4. Enable appropriate Cortex-M4F FPU ABI/compiler settings and `math` routines (`atan2f`, `fabsf`, `isfinite`, `NAN`).
 5. **Do not alter `MOTOR_OUTPUT_ALLOWED 0`** during first sensor/logic tests. Verify STBY remains low.
@@ -32,7 +32,7 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 | User switch | PF4 | Onboard SW1, active low, hold-to-enable only after initial release |
 | Status | PF1 (red), PF2 (blue), PF3 (green) | Fault, disabled, enabled; unverified target |
 | Timer0A | No pin | 200 Hz desired periodic sample wake-up |
-| Timer1A | No pin | 32-bit free-running downcounter used to calculate elapsed control dt |
+| Timer1A | No pin | 80 MHz 32-bit free-running downcounter for elapsed control dt; `~TimerValueGet()` supplies an increasing tick timestamp to the portable range-capture core |
 | WDOG0 | No pin | System-clock watchdog; 50 ms first timeout, reset on second uncleared timeout; serviced by foreground code |
 
 Before using PWM, inspect the board's PB6↔PD0 and PB7↔PD1 hard links, board revision and pin mux for conflicts.
@@ -47,7 +47,7 @@ The gyro offset is estimated only after 200 **consecutive** valid, stationary, u
 
 ## 5. Obstacle navigation status
 
-The portable front/left/right navigation state machine is in `src/navigation.c` and its interface is in `include/navigation.h`. Its host tests are in `../../tests/test_navigation.c`. `main.c` routes the policy's pitch/yaw requests through the balance controller and differential mixer, but autonomy is hard-disabled and range inputs remain invalid. The TivaWare range-sensor driver, physical sensor pin map and separate autonomy-enable input are not present yet. See [obstacle avoidance design](../../docs/obstacle_avoidance.md).
+The portable front/left/right navigation state machine is in `src/navigation.c` and its interface is in `include/navigation.h`. Its host tests are in `../../tests/test_navigation.c`. The reusable echo-pulse capture core is in `src/range_capture.c` with interface `include/range_capture.h`; its host tests cover timing, timeouts, timer rollover and three independent sensor instances. It uses timer ticks and is designed to pair with Timer1A, but it is not yet connected to TivaWare GPIO interrupts or TRIG scheduling. `main.c` routes navigation requests through the balance controller and differential mixer, but autonomy is hard-disabled and range inputs remain invalid. The physical sensor pin map and separate autonomy-enable input are not present yet. See [obstacle avoidance design](../../docs/obstacle_avoidance.md) and [range-capture engine](../../docs/range_capture.md).
 
 ## 6. Watchdog supervision
 

@@ -34,7 +34,7 @@ flowchart LR
 
 **Explore the engineering diagrams:** [Complete hardware/system diagrams](docs/architecture.md) · [Control theory and formulas](docs/control_theory.md) · [Wiring / pinout](hardware/wiring.md) · [Selection and power budget](docs/component_selection.md)
 
-**Obstacle avoidance foundation:** [Policy, state machine and hardware integration plan](docs/obstacle_avoidance.md). The policy is host-tested; range-sensor acquisition and physical navigation are still pending.
+**Obstacle avoidance foundation:** [Policy, state machine and hardware integration plan](docs/obstacle_avoidance.md). The navigation policy and [portable ultrasonic echo-capture core](docs/range_capture.md) are host-tested; the TivaWare GPIO/timer adapter, sensor pinout and physical navigation are still pending.
 
 ## Hardware platform and architecture
 
@@ -46,7 +46,7 @@ flowchart LR
 | Actuation | Two brushed DC geared motors | Exact gear ratio, torque and current **TBD** |
 | Structure | Two wheels + supported vertical chassis | Mass, inertia, wheel radius and COM **TBD** |
 | Supply | Battery, regulator, fuse and accessible motor cutoff | Values and schematic **TBD**; never power motors from MCU pins |
-| Range sensing | Three front/left/right range readings (proposed) | Exact sensor modules, pinout and acquisition driver **TBD** |
+| Range sensing | Three front/left/right ultrasonic readings (proposed) | Portable echo-capture core is host-tested; exact modules, pinout and TivaWare adapter **TBD** |
 
 **Planned signal map:** I²C0: PB2/PB3; PWM: PB6/PB7; motor direction: PC4–PC7; driver STBY: PA5; SW1: PF4. Board-specific shared pins and voltage warnings are detailed in [hardware/wiring.md](hardware/wiring.md).
 
@@ -73,7 +73,7 @@ This is an **illustrative block diagram, not the electrical schematic** required
 - Guard conditions on invalid sensor readings and invalid measured update intervals, including missed-sample faults.
 - **Release-to-arm** logic: observe switch release; require 40 consecutive upright sample checks (≤8°) with switch held, then allow the software command gate.
 - **Trip:** ≥25° pitch, sensor failure or invalid calculation -> disable the driver; fault requires release before rearming. A fatal I²C failure is latched until hardware reset.
-- **Obstacle policy:** portable front/left/right range policy with stale-data stop, side-clearance selection, timed differential turn and post-turn front re-verification. It is not yet connected to a Tiva range-sensor driver.
+- **Obstacle sensing software:** portable front/left/right navigation policy plus a reusable ultrasonic echo-capture core. Pulse timing, timeout, timer rollover and three independent capture instances are host-tested; the TivaWare GPIO/timer adapter and physical pinout remain pending.
 - **WDOG0 supervision:** 50 ms system-clock first timeout and reset on the second uncleared timeout; serviced by foreground code after completed samples. Source-level only, not target-tested, and not independent of the system clock.
 - **Compile-time actuator interlock**: `MOTOR_OUTPUT_ALLOWED 0` is the default in `firmware/tiva/src/main.c`. Motor driver STBY remains LOW; code alone does **not** replace a motor-battery fuse, power switch or hardware cutoff.
 
@@ -93,11 +93,15 @@ stateDiagram-v2
 
 ## Obstacle avoidance — current software milestone
 
-The new portable navigation module accepts fresh front, left and right distance samples and produces a small pitch target plus a differential yaw request. It stops on invalid/stale front data, refuses to turn unless a side has verified clearance, and requires three new clear front samples after a turn before cruising again.
+The portable navigation module accepts fresh front, left and right distance samples and produces a small pitch target plus a differential yaw request. It stops on invalid/stale front data, refuses to turn unless a side has verified clearance, and requires three new clear front samples after a turn before cruising again. The separate `range_capture.c` engine measures ECHO pulse widths, rejects timeout/invalid results and supports three independent sensor instances. It is not yet wired into `main.c` or connected to TivaWare GPIO interrupts.
 
 - Policy source: **firmware/tiva/src/navigation.c**
 - Public interface: **firmware/tiva/include/navigation.h**
 - Host tests: **tests/test_navigation.c**
+- Range-capture interface: **firmware/tiva/include/range_capture.h**
+- Range-capture implementation: **firmware/tiva/src/range_capture.c**
+- Range-capture tests: **tests/test_range_capture.c**
+- Range-capture timing assumptions: **docs/range_capture.md**
 - Design and hardware integration plan: **docs/obstacle_avoidance.md**
 
 The balance controller now has a target-angle API, and the motor backend has differential wheel mixing. The main Tiva application calls the navigation policy, but autonomy remains disabled and the range inputs remain invalid until the range-sensor acquisition backend, physical sensor pinout and operator enable are implemented. No physical obstacle avoidance is claimed. With no wheel encoders, the initial lean and timed-turn commands are open-loop.
@@ -131,6 +135,12 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic \
     firmware/tiva/src/navigation.c tests/test_navigation.c \
     -lm -o /tmp/test_navigation
 /tmp/test_navigation
+
+gcc -std=c11 -Wall -Wextra -Werror -pedantic \
+    -Ifirmware/tiva/include \
+    firmware/tiva/src/range_capture.c tests/test_range_capture.c \
+    -o /tmp/test_range_capture
+/tmp/test_range_capture
 ```
 
 GitHub Actions also runs these **host-side** checks after pushes and pull requests. Their success **does not establish a working Tiva firmware build or safe motor actuation**.
@@ -169,9 +179,11 @@ Tiva-Self-Balancing-Robot/
 │   ├── include/controller.h              # control/safety interfaces
 │   ├── include/diagnostics.h             # calibration + timing interfaces
 │   ├── include/navigation.h              # portable obstacle policy interface
+│   ├── include/range_capture.h           # portable ultrasonic capture interface
 │   ├── src/controller.c                  # estimator, PID and safety machine
 │   ├── src/diagnostics.c                 # stationary gyro calibration / timing
 │   ├── src/navigation.c                 # fail-safe obstacle policy
+│   ├── src/range_capture.c              # non-blocking ultrasonic echo capture
 │   ├── src/main.c                        # TivaWare 200 Hz application
 │   ├── src/imu_backend.h                 # MPU6050 I2C functions
 │   ├── src/motor_backend.h               # TB6612FNG direction / PWM / STBY
@@ -194,6 +206,7 @@ Tiva-Self-Balancing-Robot/
 │   ├── component_selection.md            # motor/driver/supply worksheet
 │   ├── optimization_and_design_review.md # implemented vs planned work
 │   ├── watchdog_safety.md                # WDOG0 reset behavior and STBY containment
+│   ├── range_capture.md                  # ultrasonic capture timing and integration
 │   ├── verification_plan.md             # before-power-on / bench criteria
 │   ├── assignment_checklist.md           # official submission requirements
 │   └── reports/
@@ -203,6 +216,7 @@ Tiva-Self-Balancing-Robot/
 ├── tests/test_controller.c               # host-side estimator/PID/safety tests
 ├── tests/test_diagnostics.c              # calibration & timer-wrap tests
 ├── tests/test_navigation.c              # obstacle policy and freshness tests
+├── tests/test_range_capture.c           # echo pulse / timeout / rollover tests
 ├── tests/test_simulation.py              # theoretical model assertions
 ├── .github/workflows/host-tests.yml
 └── tools/publish_github.ps1
