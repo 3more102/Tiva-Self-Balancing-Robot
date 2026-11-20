@@ -31,7 +31,8 @@ The 200 Hz balance loop must remain highest priority. Sensor acquisition and
 inference must be bounded and non-blocking when integrated into the MCU loop.
 The MPU6050 backend now reads vertical gyro Z during startup calibration, and
 the calibration logic estimates both pitch X and yaw Z bias. The corrected
-runtime yaw rate is not yet routed into AI navigation. The present repository
+runtime yaw rate is exposed as g_yaw_rate_dps for CCS Watch verification, but
+is not yet routed into AI navigation. The present repository
 adds the portable C inference/decision and range-capture modules, but does not
 yet connect real range sensors or the motor mixer to main.c.
 
