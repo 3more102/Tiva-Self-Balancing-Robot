@@ -1,6 +1,6 @@
 # Three-sensor ultrasonic scanner
 
-**Status:** portable, host-tested round-robin scheduler. It is not yet connected to TivaWare GPIO pins or physical sensors.
+**Status:** portable, host-tested round-robin scheduler and scanner-to-navigation input adapter. They are not yet connected to TivaWare GPIO pins or physical sensors.
 
 ## Architecture
 
@@ -28,6 +28,8 @@ flowchart TD
 - The GPIO ISR calls `range_scanner_echo_edge()` with the physical sensor ID and the current up-counting timer timestamp.
 - `range_scanner_poll()` is called from the foreground loop. It never waits; on completion it publishes either a valid distance or an invalid sample.
 - `range_scanner_get_sample()` copies the most recently published result. `has_sample` distinguishes "not measured yet" from a measured timeout; `valid` distinguishes a usable distance from an invalid reading.
+- `range_navigation_build_input()` copies the three latest samples into the exact `NavigationInput` fields used by `navigation_update()`. It keeps the separate autonomy-enable argument independent of sensor validity and maps missing/invalid samples to `valid=false`, `distance_mm=0`.
+- The navigation policy, not the scanner adapter, evaluates each sample timestamp against the front/side freshness limits.
 
 The foreground adapter must serialize scanner access with the ECHO ISR. Disable only the active sensor's GPIO interrupt briefly while starting/polling/copying the capture state, then restore it. Do not hold interrupts masked while waiting for an echo.
 
@@ -66,4 +68,4 @@ gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
 /tmp/test_range_scanner
 ```
 
-Tests cover round-robin order, one-active-sensor enforcement, wrong-sensor edge rejection, valid/invalid/timeout publication, range bounds, timer rollover and invalid API arguments.
+Tests cover round-robin order, one-active-sensor enforcement, wrong-sensor edge rejection, valid/invalid/timeout publication, range bounds, timer rollover and invalid API arguments. `tests/test_range_navigation.c` verifies front/left/right field mapping, missing samples, timeout handling and the independent autonomy-enable gate.
