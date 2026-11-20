@@ -8,7 +8,8 @@
   into the AI sensor frame without duplicating the range-capture stack.
 - Integrate 50 Hz AI shadow inference after the 200 Hz balance command and
   expose action, confidence, safety override and calibrated yaw-Z rate as
-  CCS watch variables. AI has no actuator authority.
+  CCS watch variables. The inference gate follows the balance-armed state and
+  is independent of rule-based navigation autonomy; AI has no actuator authority.
 - Extend stationary calibration to estimate pitch-X and yaw-Z gyro biases.
 - Add CI for MPU6050 axis decoding, AI adapter tests, TinyML inference,
   classification metrics and a training smoke test.
