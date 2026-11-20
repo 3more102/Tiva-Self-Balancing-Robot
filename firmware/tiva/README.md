@@ -15,7 +15,7 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 ## 2. Building the draft
 
 1. Import/create a CCS target project for the exact TM4C123GH6PM. Verify the official example builds and flashes first.
-2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, and `src/diagnostics.c`; do **not** compile helper headers as separate units. They are locally included by `main.c`.
+2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, `src/diagnostics.c`, and `src/navigation.c`; do **not** compile helper headers as separate units. The IMU and motor backend headers are locally included by `main.c`. The navigation policy is portable C but is not yet called by `main.c`.
 3. Add `include` and the TivaWare root to include directories, and link the correct version of the TivaWare driverlib.
 4. Enable appropriate Cortex-M4F FPU ABI/compiler settings and `math` routines (`atan2f`, `fabsf`, `isfinite`, `NAN`).
 5. **Do not alter `MOTOR_OUTPUT_ALLOWED 0`** during first sensor/logic tests. Verify STBY remains low.
@@ -43,6 +43,10 @@ The pure C safety logic in `controller.c` starts DISARMED, requires a prior swit
 The gyro offset is estimated only after 200 **consecutive** valid, stationary, upright samples with SW1 released, subject to the provisional sample-variance limit and a nominal 10-second startup attempt window. Timer1A measures elapsed per-cycle dt; the software rejects loops outside the provisional 2.5–8 ms window. **Neither real timing nor sensor noise has been measured on a board.** A complementary filter combines `atan2(ay, az)` with bias-corrected gyro X. The PID controller clamps command to ±0.7 and avoids integral windup.
 
 **Polarity flags in `main.c` are provisional.** Verify both motors and sensor signs with wheels raised and power limited before enabling driver output.
+
+## 5. Obstacle navigation status
+
+The portable front/left/right navigation state machine is in `src/navigation.c` and its interface is in `include/navigation.h`. Its host tests are in `../../tests/test_navigation.c`. The range-sensor acquisition driver, physical sensor pin map and main-loop integration are not present yet. See [obstacle avoidance design](../../docs/obstacle_avoidance.md).
 
 ## 5. Important limits
 
