@@ -70,6 +70,9 @@ static void control_timer_init(void)
     TimerEnable(TIMER1_BASE, TIMER_A);
 }
 
+/* Inspect in CCS Watch to verify corrected vertical-axis gyro-Z sign/rate. */
+static volatile float g_yaw_rate_dps = 0.0f;
+
 static void await_tick(void)
 {
     while ((TimerIntStatus(TIMER0_BASE, false) & TIMER_TIMA_TIMEOUT) == 0U) { }
@@ -160,6 +163,13 @@ int main(void)
         range_backend_service(now_ms);
         g_yaw_rate_debug_dps = gz - gyro_cal_yaw_bias_dps(&gyro_cal);
 
+        g_yaw_rate_dps = gz - gyro_cal_yaw_bias_dps(&gyro_cal);
+        if (!isfinite(g_yaw_rate_dps)) {
+            (void)balance_safety_update(&safety, NAN, pressed, false);
+            motors_off();
+            indicator(GPIO_PIN_1);
+            continue;
+        }
         angle = tilt_estimator_update(&estimator, ay, az, gx, dt_s);
         balance_armed = balance_safety_update(&safety, angle, pressed, imu_ok);
 
