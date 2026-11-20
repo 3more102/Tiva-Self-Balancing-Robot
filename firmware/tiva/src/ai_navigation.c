@@ -49,7 +49,7 @@ AiNavigationCommand ai_navigation_step(AiNavigationState *state,
     bool front_fresh, left_fresh, right_fresh;
 
     if (state == NULL || frame == NULL) return safe_stop(true);
-    if (!frame->autonomy_enabled) return safe_stop(false);
+    if (!frame->inference_enabled) return safe_stop(false);
     if (!isfinite(frame->yaw_rate_dps)) return safe_stop(true);
 
     front_fresh = sample_fresh(frame->front_valid, frame->front_mm,
