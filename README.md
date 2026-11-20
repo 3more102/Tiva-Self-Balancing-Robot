@@ -36,22 +36,33 @@ flowchart LR
 
 ## TinyML obstacle navigation
 
-The new GyroGuard TinyML module adds a compact 5-12-8-5 neural network that
-runs as native C on the TM4C123GH6PM. It consumes front/left/right range,
-front closing speed, and robot yaw rate, then requests FORWARD, TURN_LEFT,
-TURN_RIGHT, STOP, or REASSESS. A separate rule-based safety shield rejects
-unsafe or unsupported model actions. The model does not replace the balance
-PID and does not directly control motor PWM.
+GyroGuard includes a compact 5-12-8-5 neural network that runs as native C on
+the TM4C123GH6PM. It consumes front/left/right range, front closing speed and
+calibrated vertical-axis yaw rate, then requests FORWARD, TURN_LEFT,
+TURN_RIGHT, STOP or REASSESS. An independent rule-based safety shield rejects
+unsafe or unsupported actions. The model does not replace the balance PID.
 
-The current model is supervised behavior cloning from synthetic scenarios.
-Its 90.93% validation accuracy is measured only against held-out synthetic
-labels from the same expert policy; it is not real-robot accuracy or proof of
-collision avoidance. Real sensor acquisition, AI integration into main.c,
-motor mixing, and physical validation remain outstanding.
+The main loop now builds the AI sensor frame and runs inference at 50 Hz in
+**shadow mode**. CCS watch variables expose the action, confidence, safety
+override and corrected yaw rate. AI actions are not connected to the balance
+setpoint, motor mixer or PWM; `MOTOR_OUTPUT_ALLOWED` remains zero.
 
-A portable asynchronous range-capture layer and AI sensor-frame adapter are also included. They provide round-robin front/left/right scheduling, pulse-width conversion, timeout handling and freshness metadata. The Tiva GPIO/timer adapter is **not** implemented until the actual ultrasonic module and pinout are confirmed. See [range-sensing design and tests](docs/range_sensing.md).
+A portable asynchronous range-capture core and an optional TivaWare
+HC-SR04-compatible adapter are included. The hardware adapter is **disabled
+by default** until the actual range module and Echo voltage are confirmed.
+With the default setting, range readings are invalid and the AI returns STOP.
+The provisional PE0–PE5 mapping and voltage precautions are documented in
+[hardware/wiring.md](hardware/wiring.md).
 
-See [TinyML architecture and safety boundary](docs/ai_architecture.md) and
+The checked-in model uses supervised behavior cloning from synthetic
+scenarios. Its 90.93% validation accuracy is measured only against held-out
+synthetic labels from the same expert policy; it is not real-robot accuracy or
+proof of collision avoidance. The TivaWare target build, physical sensor
+validation, AI-to-motor integration and obstacle-course testing remain
+outstanding.
+
+See [TinyML architecture and safety boundary](docs/ai_architecture.md),
+[range-sensing design and tests](docs/range_sensing.md), and
 [training/export instructions](ai/README.md).
 
 ## Hardware platform and architecture
