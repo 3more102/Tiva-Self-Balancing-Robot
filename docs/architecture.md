@@ -120,7 +120,7 @@ Compare with [hardware/wiring.md](../hardware/wiring.md) and the [EK-TM4C123GXL 
 
 The portable navigation policy is an outer motion-request layer. It consumes timestamped front/left/right range samples and returns a pitch target and differential yaw bias. The 200 Hz balance controller remains the inner loop and retains authority over the motor command.
 
-See [obstacle avoidance design and verification](obstacle_avoidance.md) for thresholds, state transitions and limitations. The software policy is host-tested and is now called from main.c with autonomy disabled and invalid placeholder range inputs. There is not yet a TivaWare range-sensor driver, confirmed sensor pinout or operator enable path. The policy's timed turn and lean requests are open-loop because wheel encoders are not currently part of the hardware design.
+See [obstacle avoidance design and verification](obstacle_avoidance.md) for thresholds, state transitions and limitations. The software policy is host-tested and is called from main.c; its pitch/yaw requests pass through the target-angle balance controller and differential motor mixer. Autonomy remains disabled with invalid placeholder range inputs until a TivaWare range-sensor driver, confirmed sensor pinout and operator enable path are implemented. The policy's timed turn and lean requests are open-loop because wheel encoders are not currently part of the hardware design.
 
 ```mermaid
 flowchart TD
