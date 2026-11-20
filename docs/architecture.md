@@ -122,7 +122,7 @@ The portable navigation policy is an outer motion-request layer. It consumes tim
 
 See [obstacle avoidance design and verification](obstacle_avoidance.md) for thresholds, state transitions and limitations. The software policy is host-tested, but there is not yet a TivaWare range-sensor driver, confirmed sensor pinout or integration in main.c. The policy's timed turn and lean requests are open-loop because wheel encoders are not currently part of the hardware design.
 
-\`\`\`mermaid
+```mermaid
 flowchart TD
     FRONT["Front range"] --> VALID["Freshness + validity"]
     LEFT["Left range"] --> VALID
@@ -136,4 +136,4 @@ flowchart TD
     YAW --> MIX
     MIX --> DRIVER["TB6612FNG"]
     DRIVER --> MOTORS["Left + right wheels"]
-\`\`\`
+```
