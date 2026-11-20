@@ -22,7 +22,7 @@ static void test_measured_range_events_reach_ai_decision(void)
     AiNavigationCommand command;
     uint8_t sensor;
 
-    range_array_init(&ranges);
+    range_array_init(&ranges, 1U);
 
     /* Front obstacle ~= 200 mm. */
     sensor = range_array_next_trigger(&ranges, 0U, 0U);
@@ -66,7 +66,7 @@ static void test_stale_front_measurement_blocks_ai_motion(void)
     AiNavigationCommand command;
     uint8_t sensor;
 
-    range_array_init(&ranges);
+    range_array_init(&ranges, 1U);
     sensor = range_array_next_trigger(&ranges, 0U, 0U);
     assert(sensor == RANGE_FRONT);
     echo(&ranges, sensor, 100U, 6000U, 1U);
