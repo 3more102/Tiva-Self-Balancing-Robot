@@ -39,15 +39,15 @@ sequenceDiagram
 A calibration sample counts only if all hold:
 
 - Operator SW1 is **released**, so button is not requesting arming.
-- Accelerometer Y/Z and X gyro values are finite.
+- Accelerometer Y/Z and pitch X / yaw Z gyro values are finite.
 - Norm of the YZ acceleration projection is within `1.00 ± 0.15 g`. Because X-axis acceleration is omitted, this is only useful for a physically well-aligned pitch sensor frame.
 - The pitch derived from `atan2(ay, az)` is within `±6 degrees`.
-- The magnitude of X gyro rate is at most `5 degrees/second`.
-- 200 consecutive accepted samples are collected and the estimated sample standard deviation of X gyro is not above `0.75 degrees/second`.
+- The magnitudes of pitch X and yaw Z gyro rates are each at most `5 degrees/second`.
+- 200 consecutive accepted samples are collected and the estimated sample standard deviations of both X and Z gyro rates are not above `0.75 degrees/second`.
 
 Each rejected sample restarts the 200-sample sequence. Max 2000 attempts then fatal startup safe state. At 200 Hz this is **nominally** 1 s for a clean 200-sample calibration or up to 10 s for unsuccessful attempts. It is not a guaranteed wall-clock limit without firmware timing validation.
 
-Gyroscope bias estimation uses **Welford's online mean and sample variance** to avoid maintaining a sum of squared rates with poor numerical conditioning. The current code does not estimate accelerometer offset, calibrate all gyro axes, compensate temperature, or verify 3D gravity norm.
+Gyroscope bias estimation uses **Welford's online mean and sample variance** for pitch X and vertical/yaw Z to avoid maintaining a sum of squared rates with poor numerical conditioning. The current code does not estimate accelerometer offset, calibrate gyro Y, compensate temperature, or verify the full 3D gravity norm. The corrected yaw rate is not yet connected to the AI navigation loop.
 
 ## 2. Measured elapsed-time loop
 
@@ -104,8 +104,8 @@ Unresolved electrical/runtime hazards:
 | Requirement | Implementation | Automated regression |
 |---|---|---|
 | Reject uncalibrated noisy/moving samples | `firmware/tiva/src/diagnostics.c` | `tests/test_diagnostics.c` |
-| Estimate 200-sample X gyro bias | Welford accumulation | Alternating symmetric-noise test |
-| Reject excessive gyro variance | Sample variance upper bound | Noisy ±2 dps failure test |
+| Estimate 200-sample X and Z gyro biases | Welford accumulation | Alternating symmetric-noise test on both axes |
+| Reject excessive X or Z gyro variance | Per-axis sample variance upper bound | Noisy ±2 dps failure test |
 | Reject invalid elapsed period | Timer1-based timing guard | zero/oversized and rollover tests |
 | Use measured dt in estimator / PID | `firmware/tiva/src/main.c` | Source integration review needed; no MCU execution yet |
 | Motor inhibit on fault | `main.c` + `controller.c` safety gate | State-machine host tests, hardware pending |

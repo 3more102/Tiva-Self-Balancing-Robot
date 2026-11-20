@@ -1,0 +1,20 @@
+{
+  "model": "GyroGuard TinyML MLP",
+  "architecture": [5, 12, 8, 5],
+  "training_samples": 50000,
+  "validation_samples": 10000,
+  "epochs": 120,
+  "seed": 23,
+  "validation_accuracy": 0.9093,
+  "per_class_recall": {
+    "FORWARD": 0.8671957671957672,
+    "TURN_LEFT": 0.9488169966199903,
+    "TURN_RIGHT": 0.9636871508379888,
+    "STOP": 0.9465174129353234,
+    "REASSESS": 0.8512949039264829
+  },
+  "class_names": ["FORWARD", "TURN_LEFT", "TURN_RIGHT", "STOP", "REASSESS"],
+  "data_origin": "SYNTHETIC_EXPERT_POLICY_BEHAVIOR_CLONING_NOT_ROBOT_MEASUREMENTS",
+  "parameter_count": 221,
+  "weight_bytes_float32": 884
+}

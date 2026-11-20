@@ -34,6 +34,37 @@ flowchart LR
 
 **Explore the engineering diagrams:** [Complete hardware/system diagrams](docs/architecture.md) · [Control theory and formulas](docs/control_theory.md) · [Wiring / pinout](hardware/wiring.md) · [Selection and power budget](docs/component_selection.md)
 
+## TinyML obstacle navigation
+
+GyroGuard includes a compact 5-12-8-5 neural network that runs as native C on
+the TM4C123GH6PM. It consumes front/left/right range, front closing speed and
+calibrated vertical-axis yaw rate, then requests FORWARD, TURN_LEFT,
+TURN_RIGHT, STOP or REASSESS. An independent rule-based safety shield rejects
+unsafe or unsupported actions. The model does not replace the balance PID.
+
+The main loop now builds the AI sensor frame and runs inference at 50 Hz in
+**shadow mode**. CCS watch variables expose the action, confidence, safety
+override and corrected yaw rate. AI actions are not connected to the balance
+setpoint, motor mixer or PWM; `MOTOR_OUTPUT_ALLOWED` remains zero.
+
+A portable asynchronous range-capture core and an optional TivaWare
+HC-SR04-compatible adapter are included. The hardware adapter is **disabled
+by default** until the actual range module and Echo voltage are confirmed.
+With the default setting, range readings are invalid and the AI returns STOP.
+The provisional PE0–PE5 mapping and voltage precautions are documented in
+[hardware/wiring.md](hardware/wiring.md).
+
+The checked-in model uses supervised behavior cloning from synthetic
+scenarios. Its 90.93% validation accuracy is measured only against held-out
+synthetic labels from the same expert policy; it is not real-robot accuracy or
+proof of collision avoidance. The TivaWare target build, physical sensor
+validation, AI-to-motor integration and obstacle-course testing remain
+outstanding.
+
+See [TinyML architecture and safety boundary](docs/ai_architecture.md),
+[range-sensing design and tests](docs/range_sensing.md), and
+[training/export instructions](ai/README.md).
+
 ## Hardware platform and architecture
 
 | Item | Planned component | Reason / caveat |
@@ -66,11 +97,12 @@ This is an **illustrative block diagram, not the electrical schematic** required
 - Complementary pitch estimator: `atan2(ay,az)` plus bias-corrected gyro integration (angular units: degrees and deg/s).
 - Nominal loop target: **200 Hz (5 ms)**; PWM: **20 kHz**. Timer1A downcounter now supplies elapsed per-cycle `dt` and software rejects cycles outside the provisional 2.5–8 ms range. **Real timing/jitter are not measured on hardware**.
 - PD/PID controller with conditional anti-windup and normalized output clamp `|u| ≤ 0.7`; gains are **not tuned for a physical robot**.
-- **Stationary gyro calibration:** 200 consecutive upright/released-switch samples, ±6° pitch, magnitude checks, 0.75 deg/s provisional gyro noise bound and Welford mean/variance accumulation. Calibration attempts time out into disabled state.
+- **Stationary gyro calibration:** 200 consecutive upright/released-switch samples, ±6° pitch, magnitude checks, and Welford bias/variance estimates for pitch gyro X and yaw gyro Z (0.75 deg/s provisional noise bound on each). Calibration attempts time out into disabled state.
 - Guard conditions on invalid sensor readings and invalid measured update intervals, including missed-sample faults.
 - **Release-to-arm** logic: observe switch release; require 40 consecutive upright sample checks (≤8°) with switch held, then allow the software command gate.
 - **Trip:** ≥25° pitch, sensor failure or invalid calculation -> disable the driver; fault requires release before rearming. A fatal I²C failure is latched until hardware reset.
 - **Compile-time actuator interlock**: `MOTOR_OUTPUT_ALLOWED 0` is the default in `firmware/tiva/src/main.c`. Motor driver STBY remains LOW; code alone does **not** replace a motor-battery fuse, power switch or hardware cutoff.
+- **WDOG0 foreground supervision**: source-integrated with a nominal 50 ms first timeout and reset on the second unserviced timeout. It has not been target-compiled or fault-injection tested; it shares the system clock and cannot remove motor power. See [watchdog safety and target verification](docs/watchdog_safety.md).
 
 ```mermaid
 stateDiagram-v2
@@ -84,7 +116,7 @@ stateDiagram-v2
   FAULT --> DISARMED: valid sensor + release
 ```
 
-**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
+**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Watchdog safety](docs/watchdog_safety.md) · [Integration sequence](docs/integration_sequence.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
 
 ## Getting started
 
@@ -111,7 +143,7 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic \
 python3 -m unittest discover -s tests -p 'test_simulation.py'
 ```
 
-GitHub Actions also runs these **host-side** checks after pushes and pull requests. Their success **does not establish a working Tiva firmware build or safe motor actuation**.
+GitHub Actions also runs these **host-side** checks after pushes and pull requests. The TinyML inference, navigation-policy, dataset, and training smoke tests are also run in CI. Their success **does not establish a working Tiva firmware build or safe motor actuation**.
 
 ### 2. Prepare TI Code Composer Studio / TivaWare
 
@@ -145,9 +177,20 @@ Tiva-Self-Balancing-Robot/
 ├── README.md
 ├── firmware/tiva/
 │   ├── include/controller.h              # control/safety interfaces
-│   ├── include/diagnostics.h             # calibration + timing interfaces
+│   ├── include/diagnostics.h             # pitch/yaw gyro calibration + timing
+│   ├── include/navigation.h              # portable obstacle policy
+│   ├── include/ai_navigation.h           # TinyML decision interface
+│   ├── include/ai_sensor_adapter.h       # range-to-AI frame adapter
+│   ├── include/range_sensing.h           # asynchronous echo capture API
 │   ├── src/controller.c                  # estimator, PID and safety machine
-│   ├── src/diagnostics.c                 # stationary gyro calibration / timing
+│   ├── src/diagnostics.c                 # dual-axis gyro calibration / timing
+│   ├── src/imu_decode.c                  # signed MPU6050 axis decoding
+│   ├── src/navigation.c                  # rule-based obstacle policy
+│   ├── src/ai_inference.c                 # native C neural-network inference
+│   ├── src/ai_navigation.c                # AI decisions + safety shield
+│   ├── src/ai_sensor_adapter.c            # map range snapshot into AI inputs
+│   ├── src/range_sensing.c                # pulse capture, scheduler, freshness
+│   ├── src/range_backend.h                 # optional Tiva HC-SR04 GPIO/timer adapter
 │   ├── src/main.c                        # TivaWare 200 Hz application
 │   ├── src/imu_backend.h                 # MPU6050 I2C functions
 │   ├── src/motor_backend.h               # TB6612FNG direction / PWM / STBY
@@ -170,14 +213,23 @@ Tiva-Self-Balancing-Robot/
 │   ├── component_selection.md            # motor/driver/supply worksheet
 │   ├── optimization_and_design_review.md # implemented vs planned work
 │   ├── verification_plan.md             # before-power-on / bench criteria
+│   ├── watchdog_safety.md                # WDOG0 behavior and target test procedure
+│   ├── integration_sequence.md           # branch dependencies and canonical merge path
+│   ├── range_sensing.md                  # ultrasonic capture design and limits
+│   ├── ai_architecture.md                # TinyML architecture and safety boundary
 │   ├── assignment_checklist.md           # official submission requirements
 │   └── reports/
 │       ├── STAGE1_architecture_report.md
 │       ├── STAGE2_modeling_report.md
 │       └── STAGE3_final_report.md
 ├── tests/test_controller.c               # host-side estimator/PID/safety tests
-├── tests/test_diagnostics.c              # calibration & timer-wrap tests
+├── tests/test_diagnostics.c              # dual-axis calibration & timer tests
+├── tests/test_imu_decode_axes.c          # MPU6050 axis/scaling decoder tests
+├── tests/test_range_sensing.c             # asynchronous echo capture tests
+├── tests/test_ai_sensor_adapter.c         # range-to-AI frame mapping tests
+├── tests/test_ai_range_integration.c      # range capture to AI decision tests
 ├── tests/test_simulation.py              # theoretical model assertions
+├── ai/                                    # synthetic TinyML training/export pipeline
 ├── .github/workflows/host-tests.yml
 └── tools/publish_github.ps1
 ```
@@ -194,7 +246,7 @@ Tiva-Self-Balancing-Robot/
 
 ## What can be claimed today?
 
-**Implemented in source:** portable C pitch estimator, guarded PD/PID, safety state machine, gyro calibration, Timer1 elapsed-period guard, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
+**Implemented in source:** portable C pitch estimator, guarded PD/PID, safety state machine, gyro calibration, Timer1 elapsed-period guard, WDOG0 foreground supervision, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
 **Verified:** host-side regression tests and deterministic simulation checks, based on GitHub Actions when green.  
 **Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, actual stationary IMU calibration, sampling timing, assembled robot, balancing, physical protection, measured telemetry and hardware performance.
 

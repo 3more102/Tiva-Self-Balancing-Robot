@@ -15,8 +15,11 @@
 #include "driverlib/pwm.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
+#include "driverlib/watchdog.h"
 #include "controller.h"
 #include "diagnostics.h"
+#include "ai_navigation.h"
+#include "ai_sensor_adapter.h"
 
 #define MOTOR_OUTPUT_ALLOWED 0  /* MUST remain disabled before hardware qualification. */
 #define MOTOR_POLARITY (-1.0f)
@@ -25,6 +28,7 @@
 
 #define CONTROL_HZ 200U
 #define PWM_HZ 20000U
+#define WATCHDOG_TIMEOUT_MS 50U
 #define MPU6050_ADDRESS 0x68U
 #define I2C_TIMEOUT_LOOPS 50000U
 #define MPU6050_WHO_AM_I 0x75U
@@ -43,6 +47,40 @@ static void wait_for_peripheral(uint32_t id)
 
 #include "imu_backend.h"
 #include "motor_backend.h"
+#include "range_backend.h"
+
+/* WDOG0 is foreground-serviced. At 80 MHz, the first timeout is nominally
+   50 ms; if its raw flag is not cleared, the second timeout resets the MCU.
+   This detects a stalled tick wait or a foreground path that stops progressing.
+   It does NOT remove motor power; external STBY pull-down and motor disconnect
+   remain mandatory. */
+static void watchdog_init(void)
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
+    wait_for_peripheral(SYSCTL_PERIPH_WDOG0);
+    if (WatchdogLockState(WATCHDOG0_BASE)) {
+        WatchdogUnlock(WATCHDOG0_BASE);
+    }
+    WatchdogReloadSet(WATCHDOG0_BASE,
+                      (SysCtlClockGet() / 1000U) * WATCHDOG_TIMEOUT_MS);
+    WatchdogResetEnable(WATCHDOG0_BASE);
+    WatchdogStallEnable(WATCHDOG0_BASE);
+    WatchdogEnable(WATCHDOG0_BASE);
+}
+
+static void watchdog_service(void)
+{
+    /* Clearing the first-timeout flag reloads the watchdog counter. */
+    if (WatchdogIntStatus(WATCHDOG0_BASE, false) != 0U) {
+        WatchdogIntClear(WATCHDOG0_BASE);
+    }
+}
+
+/* CCS watch expressions for shadow-mode navigation diagnostics. */
+static volatile uint32_t g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+static volatile uint32_t g_ai_safety_override_debug = 0U;
+static volatile float g_ai_confidence_debug = 0.0f;
+static volatile float g_yaw_rate_debug_dps = 0.0f;
 
 static void control_timer_init(void)
 {
@@ -69,7 +107,7 @@ static void await_tick(void)
 
 int main(void)
 {
-    float ay, az, gx;
+    float ay, az, gx, gz;
     uint32_t i;
     float dt_s = 0.0f;
     GyroCalibration gyro_cal;
@@ -78,6 +116,12 @@ int main(void)
     BalanceSafety safety;
     TiltEstimator estimator;
     BalanceController controller;
+    AiNavigationState ai_state;
+    AiSensorFrame ai_frame;
+    AiNavigationCommand ai_command;
+    RangeSnapshot range_snapshot;
+    uint32_t now_ms = 0U;
+    uint8_t ai_divider = 0U;
     SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                    SYSCTL_XTAL_16MHZ); /* 80 MHz */
     FPUEnable();
@@ -85,9 +129,16 @@ int main(void)
     outputs_init();
     motors_off();
     indicator(GPIO_PIN_2); /* blue: safe/off */
+    watchdog_init();
     imu_ok = imu_init();
+    watchdog_service();
     control_timer_init();
+    watchdog_service();
+    range_backend_init(SysCtlClockGet());
+    watchdog_service();
+    ai_navigation_init(&ai_state);
     gyro_cal_init(&gyro_cal);
+    watchdog_service();
     if (imu_ok) {
         /* Calibration requires 200 consecutive, upright, still samples
            with SW1 RELEASED. Timeout after 10 s of unsuccessful attempts. */
@@ -96,8 +147,13 @@ int main(void)
             await_tick();
             released = (GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4) &
                         GPIO_PIN_4) != 0U;
-            if (!mpu_sample(&ay, &az, &gx)) { imu_ok = false; break; }
-            (void)gyro_cal_add(&gyro_cal, ay, az, gx, released);
+            if (!mpu_sample(&ay, &az, &gx, &gz)) {
+                imu_ok = false;
+                watchdog_service();
+                break;
+            }
+            (void)gyro_cal_add_axes(&gyro_cal, ay, az, gx, gz, released);
+            watchdog_service();
         }
         if (!gyro_cal_ready(&gyro_cal)) imu_ok = false;
     }
@@ -109,39 +165,73 @@ int main(void)
     balance_controller_init(&controller, 0.016f, 0.0f, 0.0009f);
 
     for (;;) {
-        bool pressed;
+        bool pressed, balance_armed;
         float angle, output;
         await_tick();
+        /* Service only after a real control tick. If await_tick() or the
+           foreground computation stalls, WDOG0 is allowed to expire. */
+        watchdog_service();
         /* Actual elapsed time, not assumed constant Ts. A missed/abnormal
            sample deadline cuts motor output via the software safety gate. */
         const bool on_time = loop_timing_step(
             &timing, TimerValueGet(TIMER1_BASE, TIMER_A), &dt_s);
         pressed = (GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4) & GPIO_PIN_4) == 0U;
         if (!on_time) {
+            g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+            g_ai_safety_override_debug = 1U;
+            g_ai_confidence_debug = 0.0f;
             (void)balance_safety_update(&safety, NAN, pressed, false);
             balance_controller_reset(&controller);
             motors_off();
             indicator(GPIO_PIN_1);
             continue;
         }
-        if (!imu_ok || !mpu_sample(&ay, &az, &gx)) {
+        if (!imu_ok || !mpu_sample(&ay, &az, &gx, &gz)) {
             imu_ok = false; /* Fatal sensor fault requires a hardware reset. */
+            g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+            g_ai_safety_override_debug = 1U;
+            g_ai_confidence_debug = 0.0f;
+            (void)balance_safety_update(&safety, NAN, pressed, false);
+            motors_off();
+            indicator(GPIO_PIN_1);
+            continue;
+        }
+        /* Range scheduling is non-blocking. Timer1A raw ticks timestamp echo
+           edges; now_ms is advanced from the measured 200 Hz loop interval. */
+        now_ms += (uint32_t)(dt_s * 1000.0f + 0.5f);
+        range_backend_service(now_ms);
+        g_yaw_rate_debug_dps = gz - gyro_cal_yaw_bias_dps(&gyro_cal);
+        if (!isfinite(g_yaw_rate_debug_dps)) {
+            g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+            g_ai_safety_override_debug = 1U;
+            g_ai_confidence_debug = 0.0f;
             (void)balance_safety_update(&safety, NAN, pressed, false);
             motors_off();
             indicator(GPIO_PIN_1);
             continue;
         }
         angle = tilt_estimator_update(&estimator, ay, az, gx, dt_s);
-        if (!balance_safety_update(&safety, angle, pressed, imu_ok)) {
+        balance_armed = balance_safety_update(&safety, angle, pressed, imu_ok);
+
+        if (!balance_armed) {
+            g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+            g_ai_confidence_debug = 0.0f;
+            g_ai_safety_override_debug = 0U;
             balance_controller_reset(&controller);
             motors_off();
             indicator(safety.mode == BALANCE_FAULT ? GPIO_PIN_1 : GPIO_PIN_2);
             continue;
         }
+
+        /* Preserve the balance path's priority: compute and issue its output
+           before the lower-priority TinyML shadow inference is executed. */
         output = balance_controller_update(
             &controller, angle, gx - estimator.gyro_bias_dps,
             dt_s);
         if (!isfinite(output)) {
+            g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+            g_ai_confidence_debug = 0.0f;
+            g_ai_safety_override_debug = 1U;
             (void)balance_safety_update(&safety, NAN, pressed, false);
             motors_off();
             indicator(GPIO_PIN_1);
@@ -149,5 +239,25 @@ int main(void)
         }
         motor_command(MOTOR_POLARITY * output);
         indicator(MOTOR_OUTPUT_ALLOWED ? GPIO_PIN_3 : GPIO_PIN_2);
+
+        /* Run navigation at 50 Hz after the balance command is issued.
+           Shadow decisions never alter the current or next motor command. */
+        if (++ai_divider >= 4U) {
+            ai_divider = 0U;
+            range_backend_snapshot(now_ms, &range_snapshot);
+            if (ai_sensor_frame_from_ranges(
+                    &ai_frame, &range_snapshot, balance_armed,
+                    g_yaw_rate_debug_dps)) {
+                ai_command = ai_navigation_step(&ai_state, &ai_frame, now_ms);
+                g_ai_action_debug = (uint32_t)ai_command.action;
+                g_ai_confidence_debug = ai_command.confidence;
+                g_ai_safety_override_debug =
+                    ai_command.safety_override ? 1U : 0U;
+            } else {
+                g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+                g_ai_safety_override_debug = 1U;
+                g_ai_confidence_debug = 0.0f;
+            }
+        }
     }
 }

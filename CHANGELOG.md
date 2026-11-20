@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.4.0 — 2026-11-20 — GyroGuard TinyML, watchdog integration and branch audit
+
+- Add native-C 5-12-8-5 TinyML inference, synthetic behavior-cloning training,
+  model export and an independent action safety shield; inference remains
+  shadow-only and does not control motor PWM.
+- Integrate WDOG0 foreground supervision into the GyroGuard Tiva source with
+  a nominal 50 ms first timeout and reset on the second uncleared timeout.
+  Target compilation and hardware fault-injection remain pending.
+- Extend model evaluation with confusion matrix, per-class precision/recall/F1
+  and macro/weighted metrics; add deterministic unit tests and CI coverage.
+- Audit the optional ultrasonic adapter against the TI pin-mux tables:
+  the current PE0–PE5 path uses GPIO edge interrupts plus Timer1A software
+  timestamps, not GPTM CCP hardware capture. Document candidate PD2/PD3/PD6
+  capture inputs without claiming approved wiring or an implemented backend.
+- Document branch dependencies and the recommended path for integrating the
+  modular rule-based range-acquisition track with TinyML without duplicating
+  range engines or watchdog implementations.
+- GitHub Actions host and documentation workflow passed at commit
+  `6759ab03c635e434da8d98c23ee033811fa50077`.
+- No CCS/TivaWare target build, physical balancing or physical obstacle-
+  avoidance validation is claimed.
+
+
 ## 0.3.0 — 2026-10-23 — Calibration, timing diagnostics and theoretical-model validation
 
 - Add portable stationary gyro bias / variance calibration with Welford accumulation and 200-sample acceptance; integrate startup timeout in Tiva MCU source.

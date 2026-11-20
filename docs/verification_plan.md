@@ -1,6 +1,6 @@
 # Verification and acceptance test plan
 
-**Scope:** Requirements and reproducibility plan. As of 23 Oct 2026 **no actual Tiva hardware acceptance test has been reported**. Do not check off hardware tests based on the host-only C test suite.
+**Scope:** Requirements and reproducibility plan. WDOG0 foreground supervision is now integrated in the firmware source, but **no actual Tiva hardware acceptance test has been reported**. Do not check off hardware tests based on the host-only C test suite.
 
 ## Verification hierarchy
 
@@ -23,9 +23,13 @@
 | C-04 | PID saturation and anti-windup for repeated extreme inputs | Output bounded within ±0.7, integral bounded | Automated |
 | C-05 | Safety startup while held | Must stay DISARMED without prior release | Automated |
 | C-06 | Release, 40 upright held samples, tilt trip, release/rearm | Transitions exactly as specified | Automated |
-| C-07 | Gyro bias calibration: switch, motion, 200 valid samples and noise bounds | No completion for unstable/noisy samples | Automated host C tests; hardware pending |
+| C-07 | Pitch X and yaw Z gyro bias calibration: switch, motion, 200 valid samples and per-axis noise bounds | No completion for unstable/noisy samples on either axis | Automated host C tests; hardware pending |
 | C-08 | Timer1 unsigned downcounter wrap, 5 ms acceptance, timing outliers | Accept good clock ticks, reject abnormal interval | Automated host C tests; target timing unverified |
 | S-01 | Theoretical pitch-only PD / open-loop regression | Internally consistent numerical results | Automated Python, **not measured robot data** |
+| R-01 | Range echo pulse conversion and 32-bit timer rollover | Valid pulse converts to bounded millimetres; wrap-safe capture | Automated host test; target capture pending |
+| R-02 | Missing echo, stuck-high echo and invalid pulse | Timeout/reject without fabricating or overwriting a valid reading | Automated host test; target capture pending |
+| R-03 | Three-sensor round-robin and freshness | 60 ms inter-ping gap; stale readings marked invalid | Automated host test; acoustic cross-talk pending |
+| R-04 | AI range-frame adapter | Front/left/right validity, timestamps and yaw rate map correctly | Automated host test; physical sensor validation pending |
 | D-01 | Check relative Markdown links and code fences | No broken links, balanced fences | Automated |
 | T-01 | Compile all embedded source with CCS for TM4C123 | No target compiler/link errors | **Not tested** |
 | T-02 | Inspect GPIO levels / power without motors connected | PA5 LOW, safe pin voltages | **Not tested** |
@@ -36,8 +40,14 @@
 | T-07 | Physical switch/debounce and safe arming | No surprise motor activation, including reset while held | **Not tested** |
 | T-08 | Sensor unplug, transient NACK, CPU fault/brownout | Measured safe motor cutoff; independent hardware containment | **Not tested** |
 | T-09 | Motor rotation/polarity with suspended wheels, qualified supply | Each channel matches signed command, no over-current | **Not tested** |
+| T-10 | Characterize current disabled GPIO-interrupt range prototype: trigger pulse, Echo logic level, ISR edge latency, missed/coalesced edges, cross-talk and known distances | Scope/logic-analyzer evidence and repeated distance measurements; this prototype is not accepted as hardware CCP capture | **Not tested** |
+| T-13 | Implement and verify GPTM CCP edge-time capture on the candidate PD2/PD3/PD6 inputs | Target build; rising/falling capture traces; measured pulse-width error and rollover behavior; no missed edges at accepted pulse widths | **Not implemented / not tested** |
+| T-11 | Measure 200 Hz balance-loop timing with 50 Hz TinyML shadow inference enabled | Control dt and execution time stay within qualified deadline margins | **Not tested** |
+| T-12 | With motor supply physically disconnected, deliberately stall foreground after WDOG0 initialization; measure first timeout and second-timeout reset; verify STBY stays low through reset | Measured reset timing, no unexpected normal-operation reset, and safe STBY state documented against commit SHA | **Not tested** |
 | R-01 | Restrained moderate tilt recovery | No positive feedback runaway; documented response | **Not tested** |
 | R-02 | Repeated balance runs | Actual logs/metrics linked to measured datasets | **Not tested** |
+
+See [range-sensing design and host-test coverage](range_sensing.md) for the portable ultrasonic capture contract and hardware-integration limits.
 
 ## Operator safety procedure
 
