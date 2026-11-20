@@ -27,8 +27,11 @@ The 200 Hz balance loop remains highest priority. Startup calibration estimates
 both pitch-X and vertical/yaw-Z gyro offsets. The corrected yaw rate is passed
 to `ai_range_adapter.c`, which maps the existing `NavigationInput` contract
 into the AI model's `AiSensorFrame`. The main loop runs inference at 50 Hz
-**after issuing the balance command**. AI action, confidence and safety
-override are exposed as CCS watch variables only.
+**after issuing the balance command** whenever the balance state is armed. The
+AI frame's `inference_enabled` gate is separate from
+`NavigationInput.autonomy_enabled`: the rule-based navigation actuator gate
+can remain disabled while the model evaluates sensor data in shadow mode. AI
+action, confidence and safety override are exposed as CCS watch variables only.
 
 The AI output is not connected to the balance target, differential motor
 mixer, PWM or GPIO. `MOTOR_OUTPUT_ALLOWED` remains `0`.
@@ -45,8 +48,11 @@ The canonical range layer consists of:
 
 These modules are host-tested but are **not yet wired into `main.c` or a
 TivaWare hardware backend**. The current `navigation_input` in `main.c`
-starts with invalid range samples and `autonomy_enabled=false`. Therefore
-the AI currently returns STOP and does not evaluate live sensor data.
+starts with invalid range samples and `autonomy_enabled=false`, so the
+rule-based navigation policy cannot authorize travel. The AI inference gate
+is tied to the balance-armed state, independently, but invalid front data
+still forces its safety shield to return STOP. It has not evaluated live
+sensor data.
 
 The current range capture engine consumes timestamped edge events; a final
 TM4C hardware backend must be implemented and verified. The candidate
