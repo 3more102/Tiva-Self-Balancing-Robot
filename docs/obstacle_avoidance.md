@@ -41,9 +41,10 @@ The navigation interface is independent of TivaWare. The sensor backend supplies
 | Clear confirmation | 3 distinct samples | Avoid resuming on one transient echo |
 | Maximum turns per obstruction | 2 | Stop retrying if the path remains blocked |
 | Cruise lean request | 1.5 degrees | Initial, unvalidated forward pitch target |
+| Balance-controller pitch-target clamp | ±3 degrees | Hard software limit on outer-loop commanded lean; provisional |
 | Turn bias | 0.12 normalized | Initial, unvalidated differential command |
 
-These are **software starting values**, not measured stopping distances or safe speeds. The policy rejects zero and values above 4000 mm; change NAV_MAX_RANGE_MM to match the selected sensor datasheet. In particular, timeout sentinels such as 65535 must never be interpreted as clear space. Tune all thresholds only after the sensor geometry, chassis, motors and control loop are measured.
+These are **software starting values**, not measured stopping distances or safe speeds. The policy rejects zero and values above 4000 mm; change NAV_MAX_RANGE_MM to match the selected sensor datasheet. In particular, timeout sentinels such as 65535 must never be interpreted as clear space. Tune all thresholds only after the sensor geometry, chassis, motors and control loop are measured. The balance controller independently clamps pitch targets to ±3°; the 1.5° cruise request is inside that provisional bound.
 
 ### State behavior
 
@@ -51,7 +52,7 @@ These are **software starting values**, not measured stopping distances or safe 
 2. **HOLD:** startup, stale data, obstacle, or uncertain path; travel requests are zero.
 3. **CRUISE:** a fresh front sample is clear; request a small pitch target.
 4. **TURN_LEFT / TURN_RIGHT:** stop forward lean and request a short differential turn toward a side with verified clearance.
-5. **Re-verify:** after a turn, require three new, fresh front samples at or beyond the clear threshold before returning to cruise. If the path remains blocked, at most one additional turn attempt is allowed; otherwise remain stopped.
+5. **Re-verify:** after a turn, require three new, fresh front samples at or beyond the clear threshold before returning to cruise. If the path remains blocked, at most one retry is allowed, and only toward the opposite side with fresh verified clearance; otherwise remain stopped.
 
 Positive yaw bias is defined as a left-wheel command greater than the right-wheel command, corresponding to a right turn when the motor directions have been calibrated. The motor mixer must preserve the balance component and scale both wheel commands together if either would exceed the normalized output range.
 
@@ -86,4 +87,4 @@ gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
 /tmp/test_navigation
 ```
 
-The tests cover autonomy disable, invalid/stale front data, out-of-range timeout sentinels, three-sample clear confirmation, turn-side selection, timed turn completion, post-turn re-verification, holding when neither side is clear, uint32 timestamp rollover, stale side-sample rejection and aborting a turn when the front or selected-side reading becomes stale. These host tests do not verify TivaWare peripherals, sensor wiring, physical stopping distance or real obstacle avoidance.
+The tests cover autonomy disable, invalid/stale front data, out-of-range timeout sentinels, three-sample clear confirmation, turn-side selection, timed turn completion, post-turn re-verification, holding when neither side is clear, uint32 timestamp rollover, stale side-sample rejection and aborting a turn when the front or selected-side reading becomes stale. They also verify that a failed turn cannot retry toward the same side when the opposite side is blocked. These host tests do not verify TivaWare peripherals, sensor wiring, physical stopping distance or real obstacle avoidance.

@@ -15,6 +15,7 @@
 #include "driverlib/pwm.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
+#include "driverlib/watchdog.h"
 #include "controller.h"
 #include "diagnostics.h"
 #include "navigation.h"
@@ -26,6 +27,7 @@
 
 #define CONTROL_HZ 200U
 #define PWM_HZ 20000U
+#define WATCHDOG_TIMEOUT_MS 50U
 #define MPU6050_ADDRESS 0x68U
 #define I2C_TIMEOUT_LOOPS 50000U
 #define MPU6050_WHO_AM_I 0x75U
@@ -44,6 +46,30 @@ static void wait_for_peripheral(uint32_t id)
 
 #include "imu_backend.h"
 #include "motor_backend.h"
+
+/* WDOG0 uses the system clock: first timeout sets a flag; a second uncleared
+   timeout resets the MCU. At 80 MHz, 4,000,000 counts is nominally 50 ms. */
+static void watchdog_init(void)
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
+    wait_for_peripheral(SYSCTL_PERIPH_WDOG0);
+    if (WatchdogLockState(WATCHDOG0_BASE)) {
+        WatchdogUnlock(WATCHDOG0_BASE);
+    }
+    WatchdogReloadSet(WATCHDOG0_BASE,
+                      (SysCtlClockGet() / 1000U) * WATCHDOG_TIMEOUT_MS);
+    WatchdogResetEnable(WATCHDOG0_BASE);
+    WatchdogStallEnable(WATCHDOG0_BASE);
+    WatchdogEnable(WATCHDOG0_BASE);
+}
+
+/* Clearing a pending first-timeout flag reloads the watchdog counter. */
+static void watchdog_service(void)
+{
+    if (WatchdogIntStatus(WATCHDOG0_BASE, false) != 0U) {
+        WatchdogIntClear(WATCHDOG0_BASE);
+    }
+}
 
 static void control_timer_init(void)
 {
@@ -92,8 +118,11 @@ int main(void)
     outputs_init();
     motors_off();
     indicator(GPIO_PIN_2); /* blue: safe/off */
+    watchdog_init();
     imu_ok = imu_init();
+    watchdog_service();
     control_timer_init();
+    watchdog_service();
     gyro_cal_init(&gyro_cal);
     if (imu_ok) {
         /* Calibration requires 200 consecutive, upright, still samples
@@ -105,6 +134,7 @@ int main(void)
                         GPIO_PIN_4) != 0U;
             if (!mpu_sample(&ay, &az, &gx)) { imu_ok = false; break; }
             (void)gyro_cal_add(&gyro_cal, ay, az, gx, released);
+            watchdog_service();
         }
         if (!gyro_cal_ready(&gyro_cal)) imu_ok = false;
     }
@@ -138,6 +168,7 @@ int main(void)
             navigation_init(&navigation);
             motors_off();
             indicator(GPIO_PIN_1);
+            watchdog_service();
             continue;
         }
 
@@ -147,6 +178,7 @@ int main(void)
             navigation_init(&navigation);
             motors_off();
             indicator(GPIO_PIN_1);
+            watchdog_service();
             continue;
         }
 
@@ -156,6 +188,7 @@ int main(void)
             navigation_init(&navigation);
             motors_off();
             indicator(safety.mode == BALANCE_FAULT ? GPIO_PIN_1 : GPIO_PIN_2);
+            watchdog_service();
             continue;
         }
 
@@ -181,6 +214,7 @@ int main(void)
             navigation_init(&navigation);
             motors_off();
             indicator(GPIO_PIN_1);
+            watchdog_service();
             continue;
         }
 
@@ -189,5 +223,6 @@ int main(void)
             navigation_command.travel_permitted ?
                 navigation_command.yaw_bias : 0.0f);
         indicator(MOTOR_OUTPUT_ALLOWED ? GPIO_PIN_3 : GPIO_PIN_2);
+        watchdog_service();
     }
 }

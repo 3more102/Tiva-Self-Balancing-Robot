@@ -439,6 +439,87 @@ static void test_out_of_range_readings_cannot_authorize_motion(void)
     assert(command.yaw_bias == 0.0f);
 }
 
+static void test_retry_requires_opposite_side_clearance(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+    uint32_t now = 10U;
+
+    navigation_init(&nav);
+    (void)feed_clearance(&nav, &input, &now);
+    input.front_mm = 200U;
+    input.front_sample_ms = 200U;
+    input.left_mm = 700U;
+    input.right_mm = 1100U;
+    input.left_sample_ms = 200U;
+    input.right_sample_ms = 200U;
+    (void)navigation_update(&nav, &input, 200U);
+
+    input.front_sample_ms = 320U;
+    input.left_sample_ms = 320U;
+    input.right_sample_ms = 320U;
+    command = navigation_update(&nav, &input, 320U);
+    assert(command.mode == NAV_TURN_RIGHT);
+
+    input.front_sample_ms = 670U;
+    input.left_sample_ms = 670U;
+    input.right_sample_ms = 670U;
+    command = navigation_update(&nav, &input, 670U);
+    assert(command.mode == NAV_HOLD);
+
+    /* The opposite (left) side is clear; the retry must turn left. */
+    input.front_sample_ms = 800U;
+    input.left_mm = 900U;
+    input.right_mm = 300U;
+    input.left_sample_ms = 800U;
+    input.right_sample_ms = 800U;
+    command = navigation_update(&nav, &input, 800U);
+    assert(command.mode == NAV_TURN_LEFT);
+    assert(command.yaw_bias < 0.0f);
+}
+
+static void test_retry_refuses_same_side_when_opposite_is_blocked(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+    uint32_t now = 10U;
+
+    navigation_init(&nav);
+    (void)feed_clearance(&nav, &input, &now);
+    input.front_mm = 200U;
+    input.front_sample_ms = 200U;
+    input.left_mm = 700U;
+    input.right_mm = 1100U;
+    input.left_sample_ms = 200U;
+    input.right_sample_ms = 200U;
+    (void)navigation_update(&nav, &input, 200U);
+
+    input.front_sample_ms = 320U;
+    input.left_sample_ms = 320U;
+    input.right_sample_ms = 320U;
+    command = navigation_update(&nav, &input, 320U);
+    assert(command.mode == NAV_TURN_RIGHT);
+
+    input.front_sample_ms = 670U;
+    input.left_sample_ms = 670U;
+    input.right_sample_ms = 670U;
+    command = navigation_update(&nav, &input, 670U);
+    assert(command.mode == NAV_HOLD);
+
+    /* Right is still clear, but the required opposite (left) is blocked. */
+    input.front_sample_ms = 800U;
+    input.left_mm = 300U;
+    input.right_mm = 1100U;
+    input.left_sample_ms = 800U;
+    input.right_sample_ms = 800U;
+    command = navigation_update(&nav, &input, 800U);
+    assert(command.mode == NAV_HOLD);
+    assert(!command.travel_permitted);
+    assert(command.yaw_bias == 0.0f);
+}
+
 int main(void)
 {
     test_disabled_and_invalid_fail_safe();
@@ -455,6 +536,8 @@ int main(void)
     test_stale_selected_side_aborts_turn();
     test_turn_stops_early_when_front_clears();
     test_out_of_order_front_timestamps_do_not_confirm_clearance();
+    test_retry_requires_opposite_side_clearance();
+    test_retry_refuses_same_side_when_opposite_is_blocked();
     puts("PASS: obstacle navigation fail-safe, freshness, turn and re-verification tests");
     return 0;
 }

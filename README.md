@@ -74,6 +74,7 @@ This is an **illustrative block diagram, not the electrical schematic** required
 - **Release-to-arm** logic: observe switch release; require 40 consecutive upright sample checks (≤8°) with switch held, then allow the software command gate.
 - **Trip:** ≥25° pitch, sensor failure or invalid calculation -> disable the driver; fault requires release before rearming. A fatal I²C failure is latched until hardware reset.
 - **Obstacle policy:** portable front/left/right range policy with stale-data stop, side-clearance selection, timed differential turn and post-turn front re-verification. It is not yet connected to a Tiva range-sensor driver.
+- **WDOG0 supervision:** 50 ms system-clock first timeout and reset on the second uncleared timeout; serviced by foreground code after completed samples. Source-level only, not target-tested, and not independent of the system clock.
 - **Compile-time actuator interlock**: `MOTOR_OUTPUT_ALLOWED 0` is the default in `firmware/tiva/src/main.c`. Motor driver STBY remains LOW; code alone does **not** replace a motor-battery fuse, power switch or hardware cutoff.
 
 ```mermaid
@@ -88,7 +89,7 @@ stateDiagram-v2
   FAULT --> DISARMED: valid sensor + release
 ```
 
-**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
+**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md) · [Watchdog reset and motor-output containment](docs/watchdog_safety.md)
 
 ## Obstacle avoidance — current software milestone
 
@@ -192,6 +193,7 @@ Tiva-Self-Balancing-Robot/
 │   ├── experimental_protocol.md          # separate measured vs simulated data
 │   ├── component_selection.md            # motor/driver/supply worksheet
 │   ├── optimization_and_design_review.md # implemented vs planned work
+│   ├── watchdog_safety.md                # WDOG0 reset behavior and STBY containment
 │   ├── verification_plan.md             # before-power-on / bench criteria
 │   ├── assignment_checklist.md           # official submission requirements
 │   └── reports/
@@ -218,8 +220,8 @@ Tiva-Self-Balancing-Robot/
 
 ## What can be claimed today?
 
-**Implemented in source:** portable C pitch estimator, guarded PD/PID, target-angle controller API, safety state machine, gyro calibration, Timer1 elapsed-period guard, portable obstacle policy, differential motor mixer, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
-**Host verification:** obstacle policy tests and a target-angle controller test were run locally; the complete host suite is also wired into GitHub Actions.  
+**Implemented in source:** portable C pitch estimator, guarded PD/PID with ±3° commanded pitch-target limit, safety state machine, gyro calibration, Timer1 elapsed-period guard, WDOG0 foreground supervision, portable obstacle policy, differential motor mixer, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
+**Host verification:** GitHub Actions passes strict GCC builds, controller/diagnostics/navigation tests, UBSan checks, theoretical simulation tests and documentation-link checks on this development branch.  
 **Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, Tiva range-sensor acquisition and pinout, actual stationary IMU calibration, sampling timing, assembled robot, physical protection, measured telemetry, real balancing or physical obstacle avoidance.
 
 ## References
@@ -229,5 +231,6 @@ Tiva-Self-Balancing-Robot/
 3. [TI, EK-TM4C123GXL user manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf)
 4. [TDK InvenSense, MPU-6000/MPU-6050 Register Map and Descriptions](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Register-Map1.pdf)
 5. [Toshiba, TB6612FNG motor driver](https://toshiba.semicon-storage.com/eu/semiconductor/product/motor-driver-ics/brushed-dc-motor-driver-ics/detail.TB6612FNG.html)
+6. [Toshiba, TB6612FNG datasheet](https://toshiba.semicon-storage.com/info/TB6612FNG_datasheet_en_20141001.pdf)
 
 **License:** no project license has been selected; please add one before inviting unrestricted reuse. Credit any third-party example startup files or imported material according to their licenses.
