@@ -171,8 +171,35 @@ int main(void)
         angle = tilt_estimator_update(&estimator, ay, az, gx, dt_s);
         balance_armed = balance_safety_update(&safety, angle, pressed, imu_ok);
 
-        /* Run the navigation model at 50 Hz in shadow mode. It reports
-               decisions to the debugger but cannot change pitch or PWM. */
+        if (!balance_armed) {
+            g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+            g_ai_confidence_debug = 0.0f;
+            g_ai_safety_override_debug = 0U;
+            balance_controller_reset(&controller);
+            motors_off();
+            indicator(safety.mode == BALANCE_FAULT ? GPIO_PIN_1 : GPIO_PIN_2);
+            continue;
+        }
+
+        /* Preserve the balance path's priority: compute and issue its output
+           before the lower-priority TinyML shadow inference is executed. */
+        output = balance_controller_update(
+            &controller, angle, gx - estimator.gyro_bias_dps,
+            dt_s);
+        if (!isfinite(output)) {
+            g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
+            g_ai_confidence_debug = 0.0f;
+            g_ai_safety_override_debug = 1U;
+            (void)balance_safety_update(&safety, NAN, pressed, false);
+            motors_off();
+            indicator(GPIO_PIN_1);
+            continue;
+        }
+        motor_command(MOTOR_POLARITY * output);
+        indicator(MOTOR_OUTPUT_ALLOWED ? GPIO_PIN_3 : GPIO_PIN_2);
+
+        /* Run navigation at 50 Hz after the balance command is issued.
+           Shadow decisions never alter the current or next motor command. */
         if (++ai_divider >= 4U) {
             ai_divider = 0U;
             range_backend_snapshot(now_ms, &range_snapshot);
@@ -190,23 +217,5 @@ int main(void)
                 g_ai_confidence_debug = 0.0f;
             }
         }
-
-        if (!balance_armed) {
-            balance_controller_reset(&controller);
-            motors_off();
-            indicator(safety.mode == BALANCE_FAULT ? GPIO_PIN_1 : GPIO_PIN_2);
-            continue;
-        }
-        output = balance_controller_update(
-            &controller, angle, gx - estimator.gyro_bias_dps,
-            dt_s);
-        if (!isfinite(output)) {
-            (void)balance_safety_update(&safety, NAN, pressed, false);
-            motors_off();
-            indicator(GPIO_PIN_1);
-            continue;
-        }
-        motor_command(MOTOR_POLARITY * output);
-        indicator(MOTOR_OUTPUT_ALLOWED ? GPIO_PIN_3 : GPIO_PIN_2);
     }
 }
