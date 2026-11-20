@@ -51,9 +51,11 @@ static bool mpu_sample(float *ay_g, float *az_g, float *gx_dps,
     *ay_g = (float)i16_be(&bytes[2]) / 16384.0f;
     *az_g = (float)i16_be(&bytes[4]) / 16384.0f;
     *gx_dps = (float)i16_be(&bytes[8]) / 131.0f;
-    *gz_dps = (float)i16_be(&bytes[12]) / 131.0f;
+    if (gz_dps != 0)
+        *gz_dps = (float)i16_be(&bytes[12]) / 131.0f;
     return isfinite(*ay_g) && isfinite(*az_g) &&
-           isfinite(*gx_dps) && isfinite(*gz_dps);
+           isfinite(*gx_dps) &&
+           (gz_dps == 0 || isfinite(*gz_dps));
 }
 
 static bool imu_init(void)
