@@ -50,7 +50,7 @@ These are **software starting values**, not measured stopping distances or safe 
 2. **HOLD:** startup, stale data, obstacle, or uncertain path; travel requests are zero.
 3. **CRUISE:** a fresh front sample is clear; request a small pitch target.
 4. **TURN_LEFT / TURN_RIGHT:** stop forward lean and request a short differential turn toward a side with verified clearance.
-5. **Re-verify:** after a turn, require three new, fresh front samples at or beyond the clear threshold before returning to cruise. If the path remains blocked, at most one alternate-side retry is allowed; otherwise remain stopped.
+5. **Re-verify:** after a turn, require three new, fresh front samples at or beyond the clear threshold before returning to cruise. If the path remains blocked, at most one additional turn attempt is allowed; otherwise remain stopped.
 
 Positive yaw bias is defined as a left-wheel command greater than the right-wheel command, corresponding to a right turn when the motor directions have been calibrated. The motor mixer must preserve the balance component and scale both wheel commands together if either would exceed the normalized output range.
 
