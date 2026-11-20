@@ -30,9 +30,9 @@ These changes are mostly **safety/reliability improvements**, not benchmarked CP
 
 ### P1 — time determinism and fault containment
 
-7. **Partially implemented:** Timer1 elapsed-period sampling and preliminary out-of-window fault (host-tested); **still required:** scope-verified absolute timing, measured worst-case execution time, jitter statistics, missed flags/counters exposed to logs and hardware watchdog.
+7. **Partially implemented:** Timer1 elapsed-period sampling and preliminary out-of-window fault (host-tested); WDOG0 foreground supervision is now present in the Tiva source. **Still required:** scope-verified absolute timing, measured worst-case execution time, jitter statistics, missed flags/counters, and target watchdog fault-injection/reset measurements.
 8. Add I²C transaction timeout measurements and errors per type; verify safe recovery on NACK, disconnect and stuck clock/data.
-9. Add a true independent watchdog / brownout strategy. The existing software gate cannot recover if the CPU stops executing.
+9. WDOG0 foreground supervision is source-integrated but not target-validated. **Still required:** a tested independent-clock/brownout strategy where the system safety analysis requires it; WDOG0 shares the system clock and does not directly remove motor power.
 10. **Partially implemented:** stationary upright gyro bias/variance calibration with timeout (host-tested). Still add switch debounce, accelerometer calibration/offset, temperature drift study and hardware confirmation.
 11. Add sampled telemetry (timestamp, angle, gyro, command, safety state, battery/current), using DMA/ring buffers or low-priority output to avoid blocking 5 ms control loop.
 12. Set hardware-validated limits for velocity, torque/current and repeated re-arming after faults.
@@ -69,7 +69,7 @@ These changes are mostly **safety/reliability improvements**, not benchmarked CP
 
 - PWM and I²C peripheral APIs need a CCS/TivaWare compile to establish correctness.
 - The current motor code can only drive after manually changing a compile-time safety setting, and the physical polarity is unverified.
-- No current sensor, wheel encoder, physical e-stop circuit design, schematic, CAD, hardware watchdog or production release has been validated.
+- No current sensor, wheel encoder, reviewed physical e-stop circuit, complete schematic, CAD or production release has been validated. WDOG0 exists in source but its target build, reset timing and fault-injection behavior remain unverified.
 - The existing MATLAB `model_and_design.m` has illustrative plant constants, not fitted robot values.
 - The official assignment requires Arduino: the microcontroller change is unresolved until instructor confirms it.
 
