@@ -21,6 +21,10 @@ Board: **TI EK-TM4C123GXL / TM4C123GH6PM**; driver **TB6612FNG**; sensor **MPU60
 | TB6612 BO1/BO2 | Right motor leads | Drive winding |
 | Onboard Tiva SW1 / PF4 | — | Hold-to-enable, release = coast/disable |
 
+## Optional obstacle-range sensors — wiring not assigned
+
+The portable firmware now expects three timestamped range readings (front, left and right), but **no ultrasonic sensor model or pin assignment has been approved**. Do not connect trigger/echo wires based on a guessed pin map. First identify the exact module and its supply/logic-level specifications, then select unused Tiva pins and a hardware timer/GPIO interrupt route. A 5 V echo signal must not be applied directly to a TM4C123 GPIO unless the sensor documentation confirms a safe 3.3 V output; otherwise provide proper level translation. The capture core and timing assumptions are documented in [range_sensing.md](../docs/range_sensing.md).
+
 **Pin assignment caveat:** On the LaunchPad, PB6 is linked to PD0 and PB7 to PD1 via 0-ohm board resistors. Do **not** simultaneously configure PD0/PD1 as unrelated outputs while using PB6/PB7 PWM. Check your actual board revision and schematic.
 
 **Safety preflight:**
