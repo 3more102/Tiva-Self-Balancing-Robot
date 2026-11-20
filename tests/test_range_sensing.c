@@ -59,9 +59,9 @@ static void test_timeout_when_no_echo_arrives(void)
     RangeArray array;
     range_array_init(&array, 1U);
     assert(range_array_next_trigger(&array, 10U, 10000U) == RANGE_FRONT);
-    range_array_poll(&array, 22999U);
+    range_array_poll(&array, 21999U);
     assert(array.active_sensor == RANGE_FRONT);
-    range_array_poll(&array, 23000U);
+    range_array_poll(&array, 22000U);
     assert(array.active_sensor == RANGE_SENSOR_NONE);
     assert(array.channel[RANGE_FRONT].timeout_count == 1U);
     assert(range_array_next_trigger(&array, 70U, 70000U) == RANGE_LEFT);
@@ -129,6 +129,27 @@ static void test_minimum_echo_and_model_range_cap(void)
     assert(snapshot.left.distance_mm == RANGE_MAX_DISTANCE_MM);
 }
 
+
+static void test_80mhz_counter_tick_scaling(void)
+{
+    RangeArray array;
+    RangeSnapshot snapshot;
+    const uint32_t start_ticks = 0xFFFFFF00U;
+    uint8_t sensor;
+
+    /* Timer1A at 80 MHz produces 80 raw counter ticks per microsecond. */
+    range_array_init(&array, 80U);
+    sensor = range_array_next_trigger(&array, 0U, start_ticks);
+    assert(sensor == RANGE_FRONT);
+    range_array_echo_edge(&array, sensor, true,
+                          start_ticks + 8000U, 1U); /* 100 us */
+    range_array_echo_edge(&array, sensor, false,
+                          start_ticks + 168000U, 2U); /* 2,000 us pulse */
+    range_array_snapshot(&array, 2U, 250U, 750U, &snapshot);
+    assert(snapshot.front.valid);
+    assert(snapshot.front.distance_mm == 343U);
+}
+
 static void test_failed_hardware_trigger_can_be_cancelled(void)
 {
     RangeArray array;
@@ -149,6 +170,7 @@ int main(void)
     test_invalid_pulse_does_not_replace_last_good_sample();
     test_timer_rollover_and_snapshot_staleness();
     test_minimum_echo_and_model_range_cap();
+    test_80mhz_counter_tick_scaling();
     test_failed_hardware_trigger_can_be_cancelled();
     puts("PASS: asynchronous range capture, timeout, scheduling and freshness tests");
     return 0;
