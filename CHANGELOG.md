@@ -14,10 +14,11 @@
 - Add CI for MPU6050 axis decoding, AI adapter tests, TinyML inference,
   classification metrics and a training smoke test.
 - Add AI architecture and branch integration documentation.
+- **Host validation:** integrated CI run [44779316855](https://github.com/3more102/Tiva-Self-Balancing-Robot/actions/runs/44779316855) passed strict GCC, UBSan, navigation/range/AI tests, Python metrics and training smoke test, simulation and documentation links.
 - **Limitations:** range acquisition is not wired into `main.c`; range inputs
-  remain invalid and operator autonomy is disabled. The AI currently returns
-  STOP and has not evaluated live sensor data. No TivaWare target build,
-  physical balancing or physical obstacle-avoidance result is claimed.
+  remain invalid and operator autonomy is disabled. The AI safety shield
+  currently returns STOP and has not evaluated live sensor data. No CCS/TivaWare
+  target build, physical balancing or physical obstacle-avoidance result is claimed.
 
 
 ## 0.4.0 — 2026-11-20 — Obstacle-avoidance software foundation
