@@ -7,6 +7,7 @@
 /* Portable obstacle policy. Distances are millimetres; timestamps are ms. */
 #define NAV_FRONT_STOP_MM 350U
 #define NAV_FRONT_CLEAR_MM 500U
+#define NAV_MAX_RANGE_MM 4000U /* Initial sensor-independent upper bound; tune to module datasheet. */
 #define NAV_SIDE_CLEAR_MM 500U
 #define NAV_FRONT_MAX_AGE_MS 250U
 #define NAV_SIDE_MAX_AGE_MS 750U
