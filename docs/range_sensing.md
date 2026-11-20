@@ -60,12 +60,38 @@ When enabled, the provisional pin map is:
 | Right | PE4 | PE5 |
 
 The EK-TM4C123GXL LaunchPad manual shows PE0–PE5 on its expansion headers
-([TI board manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf)). The adapter
-uses Timer2A to end a 12 µs trigger pulse and Port E GPIO interrupts on both
-Echo edges. Timer1A is already configured by `main.c` as a free-running
-80 MHz down-counter; the adapter passes its bitwise inverse to the portable
-core, with `ticks_per_us = 80`. This avoids a blocking pulse-width polling
-loop in the balance task.
+([TI board manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf)). The current
+adapter uses Timer2A to end a 12 µs trigger pulse and Port E **GPIO edge
+interrupts** on both Echo edges. It reads Timer1A in the ISR to timestamp each
+edge. This is a non-blocking GPIO-interrupt implementation, **not GPTM CCP
+hardware input capture**; interrupt latency and the possibility of closely
+spaced edges being coalesced have not been measured. PE0–PE5 do not expose CCP
+alternate functions in the TM4C123GH6PM pin-mux table. Therefore this adapter
+is only a disabled bring-up prototype, not the final hardware-timed capture
+implementation.
+
+### Candidate GPTM hardware-capture pin map
+
+TI's TM4C123GH6PM datasheet lists WT3CCP0 on PD2, WT3CCP1 on PD3, and WT5CCP0
+on PD6. The LaunchPad manual exposes PD2/PD3 at J3 pins 5/6 and PD6 at J4 pin
+8. These are candidate Echo inputs for a future CCP implementation; the
+current backend does **not** use them.
+
+| Sensor | TRIG candidate | ECHO capture candidate | GPTM input |
+|---|---|---|---|
+| Front | PE0 | PD2 | WT3CCP0 |
+| Left | PE2 | PD3 | WT3CCP1 |
+| Right | PE4 | PD6 | WT5CCP0 |
+
+This candidate map must still be checked against the exact LaunchPad revision,
+header wiring, timer-resource allocation and the as-built harness. The future
+backend must configure edge-time capture and record rising/falling timestamps
+in hardware, while preserving the balance-loop timebase and Timer2A trigger
+resource. Keep the current backend disabled until that implementation is
+target-compiled and verified with scope/logic-analyzer captures.
+
+References: [TM4C123GH6PM datasheet](https://www.ti.com/lit/ds/symlink/tm4c123gh6pm.pdf)
+and [EK-TM4C123GXL board manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf).
 
 **Electrical warning:** many HC-SR04-style modules are powered from 5 V and may
 drive Echo to 5 V. The TM4C GPIO must not receive an out-of-spec voltage. Use a
@@ -147,5 +173,5 @@ tests/test_ai_sensor_adapter.c checks field order, validity, timestamps,
 yaw-rate propagation and null-argument handling.
 
 These are portable host tests. They do not verify TivaWare GPIO interrupt
-latency, Timer2A trigger timing, Timer1A capture accuracy, acoustic performance,
-Echo voltage levels or a physical sensor.
+latency, GPTM CCP capture, Timer2A trigger timing, acoustic performance, Echo
+voltage levels or a physical sensor.
