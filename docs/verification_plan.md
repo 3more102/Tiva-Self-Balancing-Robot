@@ -23,7 +23,7 @@
 | C-04 | PID saturation and anti-windup for repeated extreme inputs | Output bounded within ±0.7, integral bounded | Automated |
 | C-05 | Safety startup while held | Must stay DISARMED without prior release | Automated |
 | C-06 | Release, 40 upright held samples, tilt trip, release/rearm | Transitions exactly as specified | Automated |
-| C-07 | Gyro bias calibration: switch, motion, 200 valid samples and noise bounds | No completion for unstable/noisy samples | Automated host C tests; hardware pending |
+| C-07 | Pitch X and yaw Z gyro bias calibration: switch, motion, 200 valid samples and per-axis noise bounds | No completion for unstable/noisy samples on either axis | Automated host C tests; hardware pending |
 | C-08 | Timer1 unsigned downcounter wrap, 5 ms acceptance, timing outliers | Accept good clock ticks, reject abnormal interval | Automated host C tests; target timing unverified |
 | S-01 | Theoretical pitch-only PD / open-loop regression | Internally consistent numerical results | Automated Python, **not measured robot data** |
 | R-01 | Range echo pulse conversion and 32-bit timer rollover | Valid pulse converts to bounded millimetres; wrap-safe capture | Automated host test; target capture pending |
