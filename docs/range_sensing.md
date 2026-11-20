@@ -65,9 +65,12 @@ geometry, target angle, acoustic cross-talk and module-specific behavior can
 change the measurement. Verify against known distances and the selected
 sensor's datasheet before relying on it.
 
-The caller supplies independent monotonic microsecond and millisecond clocks.
-The microsecond timestamp measures pulse width; the millisecond timestamp
-supports freshness calculations across the microsecond counter rollover.
+The caller supplies raw ticks from one free-running hardware counter plus a
+separate monotonic millisecond clock. range_array_init() receives ticks_per_us;
+for an 80 MHz timer this is 80. If the Tiva timer counts down, pass the bitwise
+inverse of TimerValueGet() to create a wrap-safe increasing timestamp. The
+millisecond clock is used only for freshness, while raw ticks measure echo
+pulse width. This avoids assuming that the MCU has a separate microsecond clock.
 
 ## Freshness and safety
 
@@ -98,7 +101,7 @@ tests/test_range_sensing.c covers:
 - round-robin channel order and the 60 ms quiet interval
 - missing-echo and stuck-high timeouts
 - invalid-pulse rejection without replacing the last valid sample
-- 32-bit microsecond timer rollover
+- 32-bit raw timer-tick rollover at 80 ticks/µs
 - freshness expiration and failed-trigger cancellation
 
 tests/test_ai_sensor_adapter.c checks field order, validity, timestamps,
