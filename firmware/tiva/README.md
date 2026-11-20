@@ -1,6 +1,6 @@
 # TivaWare firmware bring-up: EK-TM4C123GXL / TM4C123GH6PM
 
-**Build status:** MCU target not compiled or board-tested. Portable control/safety routines are covered separately by GCC host tests; they do not test TivaWare I²C/PWM or electrical behavior.
+**Build status:** MCU target not compiled or board-tested. Portable control/safety routines are covered separately by GCC host tests; they do not test TivaWare I²C/PWM/watchdog APIs or electrical behavior. Internal WDT0 supervision is now present in source but remains target-unverified.
 
 ## 1. Expected environment
 
@@ -33,6 +33,7 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 | Status | PF1 (red), PF2 (blue), PF3 (green) | Fault, disabled, enabled; unverified target |
 | Timer0A | No pin | 200 Hz desired periodic sample wake-up |
 | Timer1A | No pin | 32-bit free-running downcounter used to calculate elapsed control dt |
+| WDT0 | No pin | 50 ms first timeout; reset on the second unserviced timeout (nominally ~100 ms) |
 
 Before using PWM, inspect the board's PB6↔PD0 and PB7↔PD1 hard links, board revision and pin mux for conflicts.
 
@@ -42,14 +43,17 @@ The pure C safety logic in `controller.c` starts DISARMED, requires a prior swit
 
 The gyro offset is estimated only after 200 **consecutive** valid, stationary, upright samples with SW1 released, subject to the provisional sample-variance limit and a nominal 10-second startup attempt window. Timer1A measures elapsed per-cycle dt; the software rejects loops outside the provisional 2.5–8 ms window. **Neither real timing nor sensor noise has been measured on a board.** A complementary filter combines `atan2(ay, az)` with bias-corrected gyro X. The PID controller clamps command to ±0.7 and avoids integral windup.
 
+WDT0 is configured from the 80 MHz system clock with a nominal 50 ms first timeout and reset enabled on the second timeout. The application polls the raw watchdog status after each Timer0A tick and clears the first-timeout flag only while the main loop is progressing. A blocked tick wait, stuck peripheral call or dead loop therefore stops servicing the watchdog. This is an MCU reset mechanism, not a motor-power disconnect; an external pull-down must keep TB6612 STBY low while MCU pins are high-impedance during reset.
+
 **Polarity flags in `main.c` are provisional.** Verify both motors and sensor signs with wheels raised and power limited before enabling driver output.
 
 ## 5. Important limits
 
-- Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing, CPU hangs and counter overflow/aliasing after ~53.7 s remain limitations.
+- Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing and counter overflow/aliasing after ~53.7 s remain limitations.
+- WDT0 adds software progress supervision, but its actual timeout/reset path is not yet verified on the target. It uses the system clock and cannot protect against every clock, power-stage or hardware failure.
 - I2C transaction handling has a software-bounded busy poll; timeouts, bus recovery, transaction sequencing and maximum duration still require real-target tests.
-- No wheel encoders, independent watchdog, UART logger, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist.
+- No wheel encoders, UART logger, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist.
 - Current MATLAB LQR is an illustrative comparison, not deployed code. Control gains are placeholders.
-- Software output gating does not substitute for power isolation and mechanical restraint.
+- Software output gating and an MCU watchdog do not substitute for a fused motor supply, independent physical cutoff, external STBY pull-down and mechanical restraint.
 
 Next evidence: capture CCS build log, scope traces (PB6/PB7/PA5), static IMU readings and measured loop timing; then proceed through [verification_plan.md](../../docs/verification_plan.md) and [calibration / timing diagrams](../../docs/calibration_timing.md).
