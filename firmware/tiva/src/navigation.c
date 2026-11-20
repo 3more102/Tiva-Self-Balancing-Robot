@@ -8,6 +8,13 @@ static bool range_fresh(bool valid, uint16_t distance_mm,
            (uint32_t)(now_ms - sample_ms) <= max_age_ms;
 }
 
+/* Accept only forward-moving timestamps; signed subtraction is wrap-safe
+ * provided successive samples are separated by less than 2^31 milliseconds. */
+static bool timestamp_is_newer(uint32_t candidate, uint32_t previous)
+{
+    return (int32_t)(candidate - previous) > 0;
+}
+
 static NavigationCommand command_for(const Navigation *navigation,
                                      float pitch_target_deg, float yaw_bias)
 {
@@ -126,7 +133,8 @@ NavigationCommand navigation_update(Navigation *navigation,
                               NAV_SIDE_MAX_AGE_MS);
     front_new = front_fresh &&
                 (!navigation->has_front_sample ||
-                 input->front_sample_ms != navigation->last_front_sample_ms);
+                 timestamp_is_newer(input->front_sample_ms,
+                                    navigation->last_front_sample_ms));
     if (front_new) {
         navigation->last_front_sample_ms = input->front_sample_ms;
         navigation->has_front_sample = true;
@@ -151,6 +159,7 @@ NavigationCommand navigation_update(Navigation *navigation,
     case NAV_TURN_LEFT:
         if (!front_fresh || !left_fresh ||
             input->left_mm < NAV_SIDE_CLEAR_MM ||
+            input->front_mm >= NAV_FRONT_CLEAR_MM ||
             (uint32_t)(now_ms - navigation->state_since_ms) >=
                 NAV_TURN_DURATION_MS) {
             navigation->mode = NAV_HOLD;
@@ -163,6 +172,7 @@ NavigationCommand navigation_update(Navigation *navigation,
     case NAV_TURN_RIGHT:
         if (!front_fresh || !right_fresh ||
             input->right_mm < NAV_SIDE_CLEAR_MM ||
+            input->front_mm >= NAV_FRONT_CLEAR_MM ||
             (uint32_t)(now_ms - navigation->state_since_ms) >=
                 NAV_TURN_DURATION_MS) {
             navigation->mode = NAV_HOLD;
