@@ -104,10 +104,10 @@ sensor's datasheet before relying on it.
 
 The caller supplies raw ticks from one free-running hardware counter plus a
 separate monotonic millisecond clock. range_array_init() receives ticks_per_us;
-for an 80 MHz timer this is 80. A zero or out-of-range scale falls back to one
-tick per microsecond for host tests; target code must pass the real scale. If
-the Tiva timer counts down, pass the bitwise inverse of TimerValueGet() to
-create a wrap-safe increasing timestamp. The millisecond clock is used only
+for an 80 MHz timer this is 80. A zero or out-of-range scale disables
+triggering rather than silently assuming a timer frequency. If the Tiva timer
+counts down, pass the bitwise inverse of TimerValueGet() to create a wrap-safe
+increasing timestamp. The millisecond clock is used only
 for freshness, while raw ticks measure echo pulse width. This avoids assuming
 that the MCU has a separate microsecond clock.
 
