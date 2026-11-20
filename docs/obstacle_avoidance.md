@@ -40,9 +40,10 @@ The navigation interface is independent of TivaWare. The sensor backend supplies
 | Clear confirmation | 3 distinct samples | Avoid resuming on one transient echo |
 | Maximum turns per obstruction | 2 | Stop retrying if the path remains blocked |
 | Cruise lean request | 1.5 degrees | Initial, unvalidated forward pitch target |
+| Balance-controller pitch-target clamp | ±3 degrees | Hard limit applied to any outer-loop commanded lean |
 | Turn bias | 0.12 normalized | Initial, unvalidated differential command |
 
-These are **software starting values**, not measured stopping distances or safe speeds. Tune them only after the sensor geometry, chassis, motors and control loop are measured.
+These are **software starting values**, not measured stopping distances or safe speeds. Tune them only after the sensor geometry, chassis, motors and control loop are measured. The controller independently clamps commanded pitch targets to ±3°; this software limit is also provisional and does not replace physical testing.
 
 ### State behavior
 
@@ -86,4 +87,4 @@ gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
 /tmp/test_navigation
 ```
 
-The tests cover autonomy disable, invalid/stale front data, three-sample clear confirmation, turn-side selection, timed turn completion, post-turn re-verification and holding when neither side is clear. These host tests do not verify TivaWare peripherals, sensor wiring, physical stopping distance or real obstacle avoidance.
+The tests cover autonomy disable, invalid/stale front data, three-sample clear confirmation, turn-side selection, timed turn completion, post-turn re-verification, stale-side rejection, alternate-side retry, timestamp wraparound and holding when neither side is clear. These host tests do not verify TivaWare peripherals, sensor wiring, physical stopping distance or real obstacle avoidance.
