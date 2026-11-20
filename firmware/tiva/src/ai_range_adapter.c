@@ -5,12 +5,13 @@
 
 bool ai_sensor_frame_from_navigation(AiSensorFrame *frame,
                                      const NavigationInput *input,
+                                     bool inference_enabled,
                                      float yaw_rate_dps)
 {
     if (frame == NULL || input == NULL) return false;
 
     memset(frame, 0, sizeof(*frame));
-    frame->autonomy_enabled = input->autonomy_enabled;
+    frame->inference_enabled = inference_enabled;
 
     frame->front_valid = input->front_valid;
     frame->left_valid = input->left_valid;
