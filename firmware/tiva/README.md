@@ -33,6 +33,7 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 | Status | PF1 (red), PF2 (blue), PF3 (green) | Fault, disabled, enabled; unverified target |
 | Timer0A | No pin | 200 Hz desired periodic sample wake-up |
 | Timer1A | No pin | 32-bit free-running downcounter used to calculate elapsed control dt |
+| Watchdog 0 | System clock | 50 ms first timeout; reset on second timeout; serviced after each control tick; debug-halt stall enabled |
 
 Before using PWM, inspect the board's PB6↔PD0 and PB7↔PD1 hard links, board revision and pin mux for conflicts.
 
@@ -45,6 +46,9 @@ The gyro offset is estimated only after 200 **consecutive** valid, stationary, u
 **Polarity flags in `main.c` are provisional.** Verify both motors and sensor signs with wheels raised and power limited before enabling driver output.
 
 ## 5. Important limits
+
+- **WDOG0 is now integrated in source, but not target-tested.** It uses the system clock, is loaded for a nominal 50 ms timeout, and is serviced after each control tick. TM4C123 watchdog reset occurs on the second uncleared timeout, so a persistent stall should reset the MCU in about 100 ms. See [watchdog safety and bench test](../../docs/watchdog_safety.md).
+- WDOG0 does not protect against loss of the system clock. An MCU reset is not a motor-power disconnect: PA5 becomes high-impedance during reset, so a correctly designed external pull-down on TB6612 STBY and a physical motor-battery disconnect remain mandatory.
 
 - Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing, CPU hangs and counter overflow/aliasing after ~53.7 s remain limitations.
 - I2C transaction handling has a software-bounded busy poll; timeouts, bus recovery, transaction sequencing and maximum duration still require real-target tests.
