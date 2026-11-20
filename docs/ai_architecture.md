@@ -19,13 +19,15 @@ the balance PID and it never writes motor GPIO/PWM directly.
                   |
       FORWARD / TURN / STOP / REASSESS
                   |
-      Balance setpoint and yaw-mixer interface
-                  |
-             200 Hz balance PID
-                  |
-             Motor driver
-                  |
-                Wheels
+      50 Hz shadow diagnostics
+      (no actuator authority)
+
+    Independent balance path:
+      MPU6050 pitch -> estimator -> 200 Hz PID
+                                  |
+                              Motor driver
+                                  |
+                                Wheels
 
 The 200 Hz balance loop remains highest priority. The MPU6050 backend reads
 gyro X for pitch and vertical-axis gyro Z for yaw; startup calibration
