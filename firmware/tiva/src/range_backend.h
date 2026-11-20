@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "range_sensing.h"
+#include "ai_navigation.h"
 
 /*
  * Optional HC-SR04-compatible adapter for EK-TM4C123GXL.
@@ -33,6 +34,7 @@ static RangeArray g_range_array;
 #if RANGE_HCSR04_BACKEND_ENABLED
 
 #include "driverlib/interrupt.h"
+#include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
 #include "driverlib/gpio.h"
 #include "inc/hw_ints.h"
@@ -83,7 +85,6 @@ static void range_echo_port_isr(void)
 static void range_backend_init(uint32_t clock_hz)
 {
     uint32_t ticks_per_us = clock_hz / 1000000U;
-    uint32_t trigger_ticks;
 
     g_range_clock_hz = clock_hz;
     g_range_now_ms = 0U;
@@ -113,11 +114,6 @@ static void range_backend_init(uint32_t clock_hz)
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
     TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
     IntEnable(INT_TIMER2A);
-
-    /* Standard HC-SR04 trigger pulse: 10 us. */
-    trigger_ticks = clock_hz / 100000U;
-    if (trigger_ticks == 0U) trigger_ticks = 1U;
-    (void)trigger_ticks; /* Loaded immediately before each trigger. */
 
     IntMasterEnable();
 }
