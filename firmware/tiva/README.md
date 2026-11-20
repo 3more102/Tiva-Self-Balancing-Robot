@@ -15,7 +15,7 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 ## 2. Building the draft
 
 1. Import/create a CCS target project for the exact TM4C123GH6PM. Verify the official example builds and flashes first.
-2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, and `src/diagnostics.c`; do **not** compile helper headers as separate units. They are locally included by `main.c`.
+2. Remove the example's competing `main` function. Add `src/main.c`, `src/controller.c`, `src/diagnostics.c`, and `src/imu_decode.c`; do **not** compile helper headers as separate units. They are locally included by `main.c`.
 3. Add `include` and the TivaWare root to include directories, and link the correct version of the TivaWare driverlib.
 4. Enable appropriate Cortex-M4F FPU ABI/compiler settings and `math` routines (`atan2f`, `fabsf`, `isfinite`, `NAN`).
 5. **Do not alter `MOTOR_OUTPUT_ALLOWED 0`** during first sensor/logic tests. Verify STBY remains low.
@@ -49,6 +49,14 @@ The pure C safety logic in `controller.c` starts DISARMED, requires a prior swit
 Pitch gyro X and vertical/yaw gyro Z offsets are estimated only after 200 **consecutive** valid, stationary, upright samples with SW1 released, subject to the provisional sample-variance limit on both axes and a nominal 10-second startup attempt window. Timer1A measures elapsed per-cycle dt; the software rejects loops outside the provisional 2.5–8 ms window. **Neither real timing nor sensor noise has been measured on a board.** A complementary filter combines `atan2(ay, az)` with bias-corrected gyro X. The PID controller clamps command to ±0.7 and avoids integral windup.
 
 **Polarity flags in `main.c` are provisional.** Verify both motors and sensor signs with wheels raised and power limited before enabling driver output.
+
+
+The MPU6050 burst decoder is kept in portable src/imu_decode.c and is
+host-tested independently. The target backend reads gyro X for pitch control
+and gyro Z (the documented vertical axis) for yaw-rate sensing. Both gyro
+biases are calibrated together while the robot is stationary and SW1 is
+released. The current main loop does not yet feed range measurements into the
+AI or mix AI turn requests into the motor command.
 
 ## 6. Important limits
 
