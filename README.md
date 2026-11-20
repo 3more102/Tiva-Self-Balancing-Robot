@@ -136,9 +136,9 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic \
     -lm -o /tmp/test_navigation
 /tmp/test_navigation
 
-gcc -std=c11 -Wall -Wextra -Werror -pedantic \\
-    -Ifirmware/tiva/include \\
-    firmware/tiva/src/range_capture.c tests/test_range_capture.c \\
+gcc -std=c11 -Wall -Wextra -Werror -pedantic \
+    -Ifirmware/tiva/include \
+    firmware/tiva/src/range_capture.c tests/test_range_capture.c \
     -o /tmp/test_range_capture
 /tmp/test_range_capture
 ```
