@@ -61,7 +61,7 @@ When enabled, the provisional pin map is:
 
 The EK-TM4C123GXL LaunchPad manual shows PE0–PE5 on its expansion headers
 ([TI board manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf)). The adapter
-uses Timer2A to end a 10 µs trigger pulse and Port E GPIO interrupts on both
+uses Timer2A to end a 12 µs trigger pulse and Port E GPIO interrupts on both
 Echo edges. Timer1A is already configured by `main.c` as a free-running
 80 MHz down-counter; the adapter passes its bitwise inverse to the portable
 core, with `ticks_per_us = 80`. This avoids a blocking pulse-width polling
