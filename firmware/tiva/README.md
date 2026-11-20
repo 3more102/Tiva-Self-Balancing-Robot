@@ -43,7 +43,6 @@ The portable capture and scheduling layer is in `include/range_sensing.h` and `s
 **The physical Tiva adapter is not implemented.** The ultrasonic sensor model, its trigger/echo voltage requirements, exact pin assignments and timer/GPIO capture route are not known. Do not wire an assumed 5 V echo output directly to a Tiva GPIO. Confirm the module datasheet and use a suitable level shifter/divider where required before adding pin-specific code. See [range-sensing design](../../docs/range_sensing.md).
 
 ## 5. State machine and control
-## 4. State machine and control
 
 The pure C safety logic in `controller.c` starts DISARMED, requires a prior switch release, then 40 accepted upright samples (≤8°) while held before ARMED. On release it disarms. On ≥25° tip or invalid sample it faults until release with valid input. The application separately treats fatal IMU communication errors as latched until reset.
 
@@ -51,7 +50,7 @@ The gyro offset is estimated only after 200 **consecutive** valid, stationary, u
 
 **Polarity flags in `main.c` are provisional.** Verify both motors and sensor signs with wheels raised and power limited before enabling driver output.
 
-## 5. Important limits
+## 6. Important limits
 
 - Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing, CPU hangs and counter overflow/aliasing after ~53.7 s remain limitations.
 - I2C transaction handling has a software-bounded busy poll; timeouts, bus recovery, transaction sequencing and maximum duration still require real-target tests.
