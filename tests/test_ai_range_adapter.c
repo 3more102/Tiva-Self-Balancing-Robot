@@ -41,6 +41,11 @@ static void test_invalid_ranges_stay_invalid_and_autonomy_is_independent(void)
     assert(frame.left_mm == 0U);
     assert(frame.right_mm == 700U);
     assert(frame.left_sample_ms == 210U);
+
+    /* Shadow inference can run while the separate navigation autonomy gate
+       remains false; disabling the inference gate is an independent choice. */
+    assert(ai_sensor_frame_from_navigation(&frame, &input, false, 0.0f));
+    assert(!frame.inference_enabled);
 }
 
 static void test_null_arguments(void)
