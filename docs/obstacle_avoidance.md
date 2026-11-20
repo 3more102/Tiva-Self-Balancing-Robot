@@ -1,6 +1,6 @@
 # Obstacle avoidance — software foundation
 
-**Status:** portable navigation policy, ultrasonic echo-capture core, three-sensor round-robin scheduler, scanner-to-navigation adapter and host tests are implemented. main.c calls the navigation policy and routes its pitch/yaw requests through the controller/motor-mixing path, but autonomy is disabled and range inputs are invalid placeholders. The TivaWare GPIO/timer adapter, physical sensor wiring, operator enable and floor tests are not implemented or verified. Motor output remains disabled by default.
+**Status:** portable navigation policy, ultrasonic echo-capture core, three-sensor round-robin scheduler, scanner-to-navigation adapter, hardware-callback acquisition coordinator and host tests are implemented. main.c calls the navigation policy and routes its pitch/yaw requests through the controller/motor-mixing path, but autonomy is disabled and range inputs are invalid placeholders. The TivaWare GPIO/timer backend, physical sensor wiring, operator enable and floor tests are not implemented or verified. Motor output remains disabled by default.
 
 ## 1. Intended architecture
 
@@ -58,7 +58,7 @@ Positive yaw bias is defined as a left-wheel command greater than the right-whee
 
 ## 3. Sensor hardware plan
 
-The repository includes a portable echo-capture engine (`range_capture.c`), a three-sensor round-robin scheduler (`range_scanner.c`) and a mapping adapter (`range_navigation.c`) that builds the navigation policy's `NavigationInput` from the latest sensor samples. The scheduler permits one active ping at a time, enforces a configurable quiet interval, publishes valid/invalid distance samples with timestamps and rejects out-of-range results. These portable modules do not configure TivaWare GPIO/timer peripherals, generate physical TRIG pulses or assign pins. The policy expects front, left and right readings.
+The repository includes a portable echo-capture engine (`range_capture.c`), a three-sensor round-robin scheduler (`range_scanner.c`), a mapping adapter (`range_navigation.c`) and a hardware-callback coordinator (`range_acquisition.c`) that schedules triggers and forwards timestamped ECHO edges. The scheduler permits one active ping at a time, enforces a configurable quiet interval, publishes valid/invalid distance samples with timestamps and rejects out-of-range results. These portable modules do not configure TivaWare GPIO/timer peripherals, generate physical TRIG pulses or assign pins. The policy expects front, left and right readings.
 
 For the first hardware integration, three fixed range sensors are the simplest software match. Trigger them sequentially, not simultaneously, and allow sufficient quiet time between pings to reduce acoustic cross-talk. A single sensor on a servo is another option, but its scan schedule must still meet the front/side freshness limits and must not block the balance loop.
 
@@ -70,7 +70,8 @@ Before selecting pins, reconcile the LaunchPad header, existing PB2/PB3 I2C pins
 - [x] Add a portable, host-tested echo-capture engine that supports independent sensor instances and timer-tick timestamps.
 - [x] Add a portable, host-tested three-sensor round-robin scheduler with quiet-time enforcement, timeout publication and timestamped range samples.
 - [x] Add a host-tested adapter that maps scanner samples into `NavigationInput` while preserving the separate autonomy-enable gate.
-- Add the non-blocking TivaWare GPIO/timer adapter and physical TRIG/ECHO pin mapping.
+- [x] Add a host-tested foreground acquisition coordinator with mockable timer, ECHO interrupt-mask and TRIG-pulse callbacks.
+- Add the non-blocking TivaWare GPIO/timer backend that implements the acquisition callbacks and physical TRIG/ECHO pin mapping.
 - Decide and document the physical sensor arrangement and pin mapping; keep the operator autonomy enable separate from the balance-enable switch.
 - Calibrate both wheel polarities with wheels raised before any motor-output qualification.
 - Keep MOTOR_OUTPUT_ALLOWED set to 0 until the hardware power, polarity, current and emergency-disconnect checks are complete.
