@@ -91,7 +91,8 @@ The native-C inference and decision layer is integrated in `firmware/tiva/src/ma
 at 50 Hz in shadow mode, after the balance command. The
 `ai_range_adapter.c` module maps the canonical `NavigationInput` contract into
 the AI frame and carries the calibrated MPU6050 yaw-Z rate. The portable
-range-acquisition coordinator is not yet wired into `main.c`, and the
-operator autonomy input remains hard-disabled; current range values are
-invalid, so the AI returns STOP and does not yet evaluate live sensor data.
-The AI output has no actuator authority.
+range-acquisition coordinator is not yet wired into `main.c`; current range
+values are invalid, so the AI safety shield returns STOP and it does not yet
+evaluate live sensor data. The AI shadow inference gate follows the balance-
+armed state and is independent of the rule-based operator autonomy gate. The
+AI output has no actuator authority.
