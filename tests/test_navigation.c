@@ -300,6 +300,37 @@ static void test_stale_front_sample_aborts_timed_turn(void)
     assert(command.yaw_bias == 0.0f);
 }
 
+static void test_out_of_range_readings_cannot_authorize_motion(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+
+    navigation_init(&nav);
+    input.front_mm = UINT16_MAX; /* Common timeout/sentinel value. */
+    input.front_sample_ms = 10U;
+    command = navigation_update(&nav, &input, 10U);
+    assert(command.mode == NAV_HOLD);
+    assert(!command.travel_permitted);
+    assert(command.pitch_target_deg == 0.0f);
+
+    input.front_mm = 200U;
+    input.front_sample_ms = 200U;
+    input.left_mm = UINT16_MAX;
+    input.right_mm = UINT16_MAX;
+    input.left_sample_ms = 200U;
+    input.right_sample_ms = 200U;
+    (void)navigation_update(&nav, &input, 200U);
+
+    input.front_sample_ms = 320U;
+    input.left_sample_ms = 320U;
+    input.right_sample_ms = 320U;
+    command = navigation_update(&nav, &input, 320U);
+    assert(command.mode == NAV_HOLD);
+    assert(!command.travel_permitted);
+    assert(command.yaw_bias == 0.0f);
+}
+
 int main(void)
 {
     test_disabled_and_invalid_fail_safe();
@@ -309,6 +340,7 @@ int main(void)
     test_no_verified_side_means_no_turn();
     test_stale_side_ranges_cannot_authorize_turn();
     test_autonomy_disable_cancels_motion();
+    test_out_of_range_readings_cannot_authorize_motion();
     test_sample_timestamps_survive_uint32_wrap();
     test_stale_side_samples_cannot_authorize_turn();
     test_stale_front_sample_aborts_timed_turn();
