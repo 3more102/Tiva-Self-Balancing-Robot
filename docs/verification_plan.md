@@ -26,6 +26,10 @@
 | C-07 | Gyro bias calibration: switch, motion, 200 valid samples and noise bounds | No completion for unstable/noisy samples | Automated host C tests; hardware pending |
 | C-08 | Timer1 unsigned downcounter wrap, 5 ms acceptance, timing outliers | Accept good clock ticks, reject abnormal interval | Automated host C tests; target timing unverified |
 | S-01 | Theoretical pitch-only PD / open-loop regression | Internally consistent numerical results | Automated Python, **not measured robot data** |
+| R-01 | Range echo pulse conversion and 32-bit timer rollover | Valid pulse converts to bounded millimetres; wrap-safe capture | Automated host test; target capture pending |
+| R-02 | Missing echo, stuck-high echo and invalid pulse | Timeout/reject without fabricating or overwriting a valid reading | Automated host test; target capture pending |
+| R-03 | Three-sensor round-robin and freshness | 60 ms inter-ping gap; stale readings marked invalid | Automated host test; acoustic cross-talk pending |
+| R-04 | AI range-frame adapter | Front/left/right validity, timestamps and yaw rate map correctly | Automated host test; live sensor integration pending |
 | D-01 | Check relative Markdown links and code fences | No broken links, balanced fences | Automated |
 | T-01 | Compile all embedded source with CCS for TM4C123 | No target compiler/link errors | **Not tested** |
 | T-02 | Inspect GPIO levels / power without motors connected | PA5 LOW, safe pin voltages | **Not tested** |
@@ -38,6 +42,8 @@
 | T-09 | Motor rotation/polarity with suspended wheels, qualified supply | Each channel matches signed command, no over-current | **Not tested** |
 | R-01 | Restrained moderate tilt recovery | No positive feedback runaway; documented response | **Not tested** |
 | R-02 | Repeated balance runs | Actual logs/metrics linked to measured datasets | **Not tested** |
+
+See [range-sensing design and host-test coverage](range_sensing.md) for the portable ultrasonic capture contract and hardware-integration limits.
 
 ## Operator safety procedure
 
