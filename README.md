@@ -155,10 +155,10 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic \
     tests/test_range_scanner.c -o /tmp/test_range_scanner
 /tmp/test_range_scanner
 
-gcc -std=c11 -Wall -Wextra -Werror -pedantic \\
-    -Ifirmware/tiva/include \\
-    firmware/tiva/src/navigation.c firmware/tiva/src/range_capture.c \\
-    firmware/tiva/src/range_scanner.c firmware/tiva/src/range_navigation.c \\
+gcc -std=c11 -Wall -Wextra -Werror -pedantic \
+    -Ifirmware/tiva/include \
+    firmware/tiva/src/navigation.c firmware/tiva/src/range_capture.c \
+    firmware/tiva/src/range_scanner.c firmware/tiva/src/range_navigation.c \
     tests/test_range_navigation.c -lm -o /tmp/test_range_navigation
 /tmp/test_range_navigation
 ```
@@ -169,7 +169,7 @@ GitHub Actions also runs these **host-side** checks after pushes and pull reques
 
 1. Install TI [Code Composer Studio](https://www.ti.com/tool/CCSTUDIO) and [EK-TM4C123GXL board resources / TivaWare](https://www.ti.com/tool/EK-TM4C123GXL).
 2. Start from a **working TivaWare example** for the exact `TM4C123GH6PM` target to obtain the correct startup file, linker configuration, compiler options and driverlib link library.
-3. Add `firmware/tiva/src/main.c`, `controller.c`, `diagnostics.c`, `navigation.c`, `range_capture.c` , `range_scanner.c` and `range_navigation.c`, include `firmware/tiva/include`, and configure TI TivaWare library/include paths. The portable range modules are host-tested but not yet connected to main.c; the TivaWare GPIO/timer adapter, sensor pinout and separate operator enable are still pending.
+3. Add `firmware/tiva/src/main.c`, `controller.c`, `diagnostics.c`, `navigation.c`, `range_capture.c`, `range_scanner.c` and `range_navigation.c`, include `firmware/tiva/include`, and configure TI TivaWare library/include paths. The portable range modules are host-tested but not yet connected to main.c; the TivaWare GPIO/timer adapter, sensor pinout and separate operator enable are still pending.
 4. Build and test with **motors unpowered**, confirming sensor reads, GPIO voltage, clock, real timing and pin multiplexing.
 5. Do **not** enable `MOTOR_OUTPUT_ALLOWED` until the independent physical wiring/current/polarity review is completed.
 
