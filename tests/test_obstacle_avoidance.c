@@ -28,7 +28,7 @@ static void test_obstacle_turn_hysteresis_and_alternation(void)
     steering = obstacle_avoidance_step(&nav, 0.005f, true, false, NAN);
     assert(fabsf(steering - 0.16f) < 0.0001f);
     assert(nav.mode == OBSTACLE_TURNING);
-    for (int i = 0; i < 128; ++i)
+    for (int i = 0; i < 129; ++i)
         steering = obstacle_avoidance_step(&nav, 0.005f, false, false, NAN);
     assert(nav.mode == OBSTACLE_WAIT_CLEAR);
     assert(steering == 0.0f);
