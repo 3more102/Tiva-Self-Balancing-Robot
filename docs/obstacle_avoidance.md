@@ -72,7 +72,7 @@ Before selecting pins, reconcile the LaunchPad header, existing PB2/PB3 I2C pins
 - Keep MOTOR_OUTPUT_ALLOWED set to 0 until the hardware power, polarity, current and emergency-disconnect checks are complete.
 - Add measured sensor latency, stop distance, turn angle and repeatability to the experimental log.
 
-There are no wheel encoders or closed-loop velocity estimates in the current design. The initial lean request and timed turn are therefore open-loop motion requests, not regulated speed or precise path planning. Encoder feedback and measured motor/chassis parameters are future work.
+There are no wheel encoders or closed-loop velocity estimates in the current design. The initial lean request and timed turn are therefore open-loop motion requests, not regulated speed or precise path planning. The main-loop command path is connected for software integration tests, but the disabled sensor input means no autonomous motion is currently possible. Encoder feedback and measured motor/chassis parameters are future work.
 
 ## 5. Host verification
 
