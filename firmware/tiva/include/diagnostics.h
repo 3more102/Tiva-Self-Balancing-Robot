@@ -19,6 +19,8 @@ typedef struct {
     uint32_t resets;
     float mean_dps;
     float m2_dps;
+    float yaw_mean_dps;
+    float yaw_m2_dps;
     bool complete;
 } GyroCalibration;
 
@@ -27,6 +29,12 @@ bool gyro_cal_add(GyroCalibration *cal, float accel_y_g,
                   float accel_z_g, float gyro_x_dps, bool switch_released);
 bool gyro_cal_ready(const GyroCalibration *cal);
 float gyro_cal_bias_dps(const GyroCalibration *cal);
+float gyro_cal_yaw_bias_dps(const GyroCalibration *cal);
+
+/* Calibrate the pitch gyro X axis and vertical/yaw gyro Z axis together. */
+bool gyro_cal_add_axes(GyroCalibration *cal, float accel_y_g,
+                       float accel_z_g, float gyro_x_dps,
+                       float gyro_z_dps, bool switch_released);
 
 /* Timer1A free-running 32-bit DOWN counter, tick_hz = MCU SysCtlClockGet().
  * Unsigned subtraction handles wrap when elapsed < 2^32 ticks.
