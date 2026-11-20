@@ -63,6 +63,17 @@ static void yaw_axis_calibration(void)
     assert(!gyro_cal_add_axes(&cal, 0.0f, 1.0f, 0.1f, NAN, true));
     assert(cal.valid_samples == 0U);
     assert(cal.resets == 1U);
+
+    gyro_cal_init(&cal);
+    for (uint32_t k = 0U; k < GYRO_CAL_SAMPLES; ++k) {
+        const float noisy_yaw = (k % 2U) ? 2.0f : -2.0f;
+        const bool ready = gyro_cal_add_axes(&cal, 0.0f, 1.0f,
+                                             0.0f, noisy_yaw, true);
+        assert(!ready);
+    }
+    assert(!gyro_cal_ready(&cal));
+    assert(cal.valid_samples == 0U);
+    assert(cal.resets == 1U);
 }
 
 static void timing(void)
