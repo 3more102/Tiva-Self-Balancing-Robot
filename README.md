@@ -218,9 +218,9 @@ Tiva-Self-Balancing-Robot/
 
 ## What can be claimed today?
 
-**Implemented in source:** portable C pitch estimator, guarded PD/PID, safety state machine, gyro calibration, Timer1 elapsed-period guard, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
-**Verified:** host-side regression tests and deterministic simulation checks, based on GitHub Actions when green.  
-**Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, actual stationary IMU calibration, sampling timing, assembled robot, balancing, physical protection, measured telemetry and hardware performance.
+**Implemented in source:** portable C pitch estimator, guarded PD/PID, target-angle controller API, safety state machine, gyro calibration, Timer1 elapsed-period guard, portable obstacle policy, differential motor mixer, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
+**Host verification:** obstacle policy tests and a target-angle controller test were run locally; the complete host suite is also wired into GitHub Actions.  
+**Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, range-sensor acquisition, main-loop navigation integration, actual stationary IMU calibration, sampling timing, assembled robot, physical protection, measured telemetry, real balancing or physical obstacle avoidance.
 
 ## References
 
