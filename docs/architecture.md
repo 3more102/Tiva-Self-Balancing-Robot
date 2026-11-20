@@ -47,7 +47,7 @@ flowchart TD
     STOP --> NEXT
 ```
 
-The firmware now computes `dt` using a Timer1A downcounter; it detects some early/late control intervals against provisional 2.5–8 ms bounds. However, actual real-time jitter, missed deadlines and worst-case execution time have **not** been measured on the board, and software cannot replace a hardware watchdog. Firmware motor output remains compile-time disabled. This diagram is a conceptual control flow, not proof of safe real-time timing.
+The firmware now computes `dt` using a Timer1A downcounter; it detects some early/late control intervals against provisional 2.5–8 ms bounds. However, actual real-time jitter, missed deadlines and worst-case execution time have **not** been measured on the board. Internal WDT0 progress supervision has been added in source but is not target-verified and cannot replace a physical motor-power cutoff. Firmware motor output remains compile-time disabled. This diagram is a conceptual control flow, not proof of safe real-time timing.
 
 ## 3. Power and interconnection diagram
 
@@ -86,7 +86,7 @@ stateDiagram-v2
     FAULT --> DISARMED : Switch released AND sensor data valid
 ```
 
-`imu_ok=false` is independently latched at application level; for a communication failure, hardware reset is required. **No safety state is a substitute for a physical power disconnect.** Debouncing and a hardware watchdog are not yet implemented.
+`imu_ok=false` is independently latched at application level; for a communication failure, hardware reset is required. **No safety state is a substitute for a physical power disconnect.** Debouncing is not yet implemented; WDT0 is present in firmware source but has not been target-tested. An external STBY pull-down is required so the driver remains disabled while MCU pins are high-impedance during reset.
 
 ## 5. Proposed electrical mapping
 
