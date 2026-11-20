@@ -58,7 +58,10 @@ The evaluation artifact includes a labeled confusion matrix, per-class
 precision/recall/F1/support, macro precision/recall/F1, and support-weighted
 F1. Macro averages include all configured actions; classes with zero support
 are reported as zero rather than silently omitted. These scores describe
-agreement with the synthetic teacher policy only.
+agreement with the synthetic teacher policy only. The checked-in
+`model_metrics.json` is the earlier run and does not yet contain the expanded
+confusion-matrix/precision/F1 fields; rerun the training command to regenerate
+that artifact with the current schema.
 
 For a quick smoke test:
 
