@@ -4,7 +4,7 @@ static bool range_fresh(bool valid, uint16_t distance_mm,
                         uint32_t sample_ms, uint32_t now_ms,
                         uint32_t max_age_ms)
 {
-    return valid && distance_mm != 0U &&
+    return valid && distance_mm != 0U && distance_mm <= NAV_MAX_RANGE_MM &&
            (uint32_t)(now_ms - sample_ms) <= max_age_ms;
 }
 
