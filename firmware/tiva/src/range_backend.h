@@ -20,7 +20,7 @@
  *   Left:  TRIG PE2, ECHO PE3
  *   Right: TRIG PE4, ECHO PE5
  *
- * The 10 us trigger pulse is ended by Timer2A; Echo edges are captured by
+ * A 12 us trigger pulse is ended by Timer2A; Echo edges are captured by
  * Port E GPIO interrupts. Timer1A is already a free-running 80 MHz downcounter
  * in main.c; its bitwise inverse is passed as an increasing raw tick counter.
  * No busy-wait is performed in the 200 Hz balance loop.
@@ -41,6 +41,7 @@ static RangeArray g_range_array;
 
 #define RANGE_TRIGGER_MASK (GPIO_PIN_0 | GPIO_PIN_2 | GPIO_PIN_4)
 #define RANGE_ECHO_MASK    (GPIO_PIN_1 | GPIO_PIN_3 | GPIO_PIN_5)
+#define RANGE_HCSR04_TRIGGER_US 12U
 
 static const uint8_t g_range_trigger_pins[RANGE_SENSOR_COUNT] = {
     GPIO_PIN_0, GPIO_PIN_2, GPIO_PIN_4
@@ -135,7 +136,8 @@ static void range_backend_service(uint32_t now_ms)
         if (g_range_trigger_pulse_active) {
             range_array_cancel_trigger(&g_range_array, sensor);
         } else {
-            const uint32_t pulse_ticks = g_range_clock_hz / 100000U;
+            const uint32_t pulse_ticks =
+                (g_range_clock_hz / 1000000U) * RANGE_HCSR04_TRIGGER_US;
             g_range_trigger_pulse_active = true;
             GPIOPinWrite(GPIO_PORTE_BASE, RANGE_TRIGGER_MASK,
                          g_range_trigger_pins[sensor]);
