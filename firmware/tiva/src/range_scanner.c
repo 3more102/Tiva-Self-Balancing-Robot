@@ -40,6 +40,7 @@ bool range_scanner_init(RangeScanner *scanner,
 
     scanner->inter_ping_ticks = inter_ping_ticks;
     scanner->max_distance_mm = max_distance_mm;
+    scanner->timer_hz = timer_hz;
     scanner->last_trigger_ticks = 0U;
     scanner->next_sensor = (uint8_t)RANGE_SENSOR_FRONT;
     scanner->active_sensor = (uint8_t)RANGE_SENSOR_FRONT;
