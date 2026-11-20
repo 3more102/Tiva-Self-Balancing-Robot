@@ -53,6 +53,7 @@ The portable front/left/right navigation state machine is in `src/navigation.c` 
 - Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing, CPU hangs and counter overflow/aliasing after ~53.7 s remain limitations.
 - I2C transaction handling has a software-bounded busy poll; timeouts, bus recovery, transaction sequencing and maximum duration still require real-target tests.
 - No wheel encoders, independent watchdog, UART logger, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist.
+- The main loop calls the portable navigation policy and routes its pitch/yaw requests through the controller and differential mixer, but autonomy is hard-disabled and all range inputs remain invalid until a real sensor backend and operator enable are implemented.
 - Current MATLAB LQR is an illustrative comparison, not deployed code. Control gains are placeholders.
 - Software output gating does not substitute for power isolation and mechanical restraint.
 
