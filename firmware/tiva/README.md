@@ -64,11 +64,18 @@ The main loop now builds a range/yaw input frame and runs TinyML inference at
 `g_yaw_rate_debug_dps` in CCS. The action is deliberately not connected to
 the balance target or motor mixer; `MOTOR_OUTPUT_ALLOWED` remains zero.
 
-## 6. Important limits
+## 6. Watchdog supervision
+
+WDOG0 is initialized after the outputs are placed in their safe/off state. At the configured 80 MHz system clock, the reload value is 4,000,000 counts (nominally 50 ms). The foreground checks the raw first-timeout flag and clears it only after setup/calibration progress or a completed control-loop tick; if the foreground stops progressing, the uncleared second timeout resets the MCU. The watchdog is configured to stall while the debugger is halted.
+
+This is **source-level integration only**: CCS/TivaWare compilation, measured reset timing and deliberate-stall testing on the TM4C123 are still outstanding. WDOG0 shares the system clock and does not directly de-energize the motor supply. The external STBY pull-down, fused motor supply and accessible physical disconnect remain mandatory. See [watchdog safety and target test procedure](../../docs/watchdog_safety.md).
+
+## 7. Important limits
 
 - Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing, CPU hangs and counter overflow/aliasing after ~53.7 s remain limitations.
 - I2C transaction handling has a software-bounded busy poll; timeouts, bus recovery, transaction sequencing and maximum duration still require real-target tests.
-- No wheel encoders, independent watchdog, UART logger, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist.
+- WDOG0 foreground supervision is integrated in `src/main.c`: nominal 50 ms first timeout, reset on the second unserviced timeout, and servicing after completed foreground progress. It has **not** been target-compiled or fault-injection tested. It uses the system clock and cannot remove motor power.
+- No wheel encoders, independent-clock watchdog, UART logger, verified hardware emergency-stop circuit, current monitoring, real sensor calibration report or power-stage approval exist.
 - Current MATLAB LQR is an illustrative comparison, not deployed code. Control gains are placeholders.
 - Software output gating does not substitute for power isolation and mechanical restraint.
 
