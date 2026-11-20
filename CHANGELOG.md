@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 — 2026-11-20 — Obstacle-avoidance software foundation
+
+- Add a portable front/left/right range-navigation policy with stale-sample checks, verified-side selection, bounded timed turns and post-turn clearance confirmation.
+- Add a target-angle balance-controller API and differential wheel command mixing while preserving the balance command under saturation.
+- Connect the navigation command path in the Tiva main loop; autonomy remains hard-disabled and range inputs remain invalid until the hardware acquisition backend and operator enable are implemented.
+- Add host tests for navigation state transitions, timestamp freshness, timestamp rollover, stale-side rejection and turn interruption; GitHub Actions runs strict GCC and UBSan checks.
+- No TivaWare range driver, confirmed sensor pinout, target build or physical obstacle-avoidance result is claimed.
+
+
 ## 0.3.0 — 2026-10-23 — Calibration, timing diagnostics and theoretical-model validation
 
 - Add portable stationary gyro bias / variance calibration with Welford accumulation and 200-sample acceptance; integrate startup timeout in Tiva MCU source.
