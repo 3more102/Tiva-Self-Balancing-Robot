@@ -1,4 +1,5 @@
 /* Internal implementation included only by main.c. Requires TivaWare includes/macros. */
+#include <stddef.h>
 #include "imu_decode.h"
 static bool i2c_finish(uint32_t command)
 {
