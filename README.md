@@ -49,6 +49,10 @@ labels from the same expert policy; it is not real-robot accuracy or proof of
 collision avoidance. Real sensor acquisition, AI integration into main.c,
 motor mixing, and physical validation remain outstanding.
 
+A portable asynchronous range-capture layer and AI sensor-frame adapter are also included. They provide round-robin front/left/right scheduling, pulse-width conversion, timeout handling and freshness metadata. The Tiva GPIO/timer adapter is **not** implemented until the actual ultrasonic module and pinout are confirmed. See [range-sensing design and tests](docs/range_sensing.md).
+
+See [TinyML architecture and safety boundary](docs/ai_architecture.md) and
+[training/export instructions](ai/README.md).
 See [TinyML architecture and safety boundary](docs/ai_architecture.md) and
 [training/export instructions](ai/README.md).
 
