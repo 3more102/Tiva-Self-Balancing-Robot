@@ -26,6 +26,7 @@ typedef struct {
     RangeSample samples[RANGE_SCANNER_SENSOR_COUNT];
     uint32_t inter_ping_ticks;
     uint32_t max_distance_mm;
+    uint32_t timer_hz;
     uint32_t last_trigger_ticks;
     uint8_t next_sensor;
     uint8_t active_sensor;
