@@ -124,7 +124,7 @@ int main(void)
             indicator(GPIO_PIN_1);
             continue;
         }
-        if (!imu_ok || !mpu_sample(&ay, &az, &gx, &gz)) {
+        if (!imu_ok || !mpu_sample(&ay, &az, &gx, 0)) {
             imu_ok = false; /* Fatal sensor fault requires a hardware reset. */
             (void)balance_safety_update(&safety, NAN, pressed, false);
             motors_off();
