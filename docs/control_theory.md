@@ -70,7 +70,7 @@ The portable PID accepts the proposed integral if unsaturated or if the error wo
 ## E. Control limits and assumptions
 
 - Nominal control period is 5 ms and nominal PWM frequency is 20 kHz. Source now passes a Timer1-measured dt (and faults outside provisional 2.5–8 ms bounds), but actual MCU scheduling, jitter and I2C duration remain **unmeasured**.
-- The current polling design assumes each I2C/algorithm update completes before the next control tick. Add measured execution time, overrun counters and a watchdog before qualification.
+- The current polling design assumes each I2C/algorithm update completes before the next control tick. WDT0 software progress supervision is now present in `main.c` (nominal reset after two 50 ms timeouts), but must be target-tested; measured execution time, overrun counters and an independent power cutoff are still required before qualification.
 - MPU acceleration includes inertial acceleration, not gravity only. Fast acceleration distorts `atan2(ay,az)`; validation must include motion data.
 - Motor voltage and effective torque vary with battery voltage, resistance, driver and mechanical friction. Saturation, dead-zone and backlash are currently absent from MATLAB model.
 - Without wheel encoders, a pitch-only controller cannot directly regulate long-term vehicle speed or position. Future augmentation: `[position, velocity, pitch, pitch_rate]` and cascading loops or full state feedback.

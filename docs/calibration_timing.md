@@ -63,7 +63,7 @@ flowchart TD
     CTRL --> GPIO["PWM outputs via TB6612<br/>ONLY if compiled/enabled and armed"]
 ```
 
-The Timer1A counter is 32-bit periodic. At 80 MHz one full period is approximately `(2^32)/80e6 = 53.687 s`. **The subtraction is valid only when fewer than 2^32 tick counts elapse between sampled reads.** A stalled CPU beyond that time can alias elapsed counts; therefore a **hardware watchdog and motor-power interlock remain required**. Interrupt latency/critical section effects have not been instrumented.
+The Timer1A counter is 32-bit periodic. At 80 MHz one full period is approximately `(2^32)/80e6 = 53.687 s`. **The subtraction is valid only when fewer than 2^32 tick counts elapse between sampled reads.** A stalled CPU beyond that time can alias elapsed counts. Internal WDT0 progress supervision has now been added, but its reset path must be verified on the target; an independent motor-power interlock remains required. Interrupt latency/critical section effects have not been instrumented.
 
 ```mermaid
 sequenceDiagram
@@ -92,11 +92,11 @@ The pure C `diagnostics.c` library and `tests/test_diagnostics.c` test stationar
 
 Unresolved electrical/runtime hazards:
 
-- MCU hung inside a blocking I2C/other driver call would stop periodic software updates; no hardware watchdog exists yet.
+- Internal WDT0 now monitors progress: first timeout at nominal 50 ms, reset on the second timeout if the first-timeout flag is not cleared (nominal reset after about 100 ms). This is source-only and not target-tested; WDT0 shares the system clock.
 - Software polling may lose multiple timer events. The measured period detects *some*, but not all, violations.
 - Incorrect voltage, wrong sensor axis, failing switch input or motor supply transient is not cured by host tests.
 - Sensor temperature drift and acceleration during motor actuation remain uncharacterized.
-- The onboard user switch is **not** an independent motor supply emergency cut-off.
+- The onboard user switch is **not** an independent motor supply emergency cut-off. An external pull-down must keep TB6612 STBY low while MCU pins are high-impedance during reset.
 - Actuators remain compile-time disabled (`MOTOR_OUTPUT_ALLOWED 0`) until hardware acceptance.
 
 ## 4. Source and test traceability

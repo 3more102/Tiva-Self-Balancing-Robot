@@ -107,7 +107,7 @@ The editable [BOM CSV](../../hardware/bom.csv) lists all preliminary categories.
 | Risk | Possible consequence | Mitigation and validation |
 |---|---|---|
 | Incorrect control polarity | Robot accelerates away from upright | Test each wheel lifted, record signs, keep motor output disabled until confirmed |
-| Loss of sensor/bus | Unobserved tilt, runaway | Sensor failure causes standby low; later add watchdog and physical fault timing test |
+| Loss of sensor/bus | Unobserved tilt, runaway | Sensor failure causes standby low; WDT0 software watchdog added in firmware source, with target reset timing and physical cutoff still to be tested |
 | Excess motor current | Driver thermal stress, wiring/battery heating | Measure stall current, fuse supply, verify safe motor/driver sizing |
 | MCU reset / brownout | Unexpected output or loss of control | Independent supply regulation; measure and ensure STBY pull-down hardware |
 | IMU axis mismatch | Wrong pitch estimate | Axis fixture and static tilt test |

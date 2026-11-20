@@ -34,19 +34,20 @@
 | T-05 | Actual timing scope/DWT counter | Nominal period ~5 ms, bounded WCET, acceptable jitter | **Not tested** |
 | T-06 | PWM waveform on PB6/PB7 | Nominal 20 kHz and correct duty mapping with STBY low | **Not tested** |
 | T-07 | Physical switch/debounce and safe arming | No surprise motor activation, including reset while held | **Not tested** |
-| T-08 | Sensor unplug, transient NACK, CPU fault/brownout | Measured safe motor cutoff; independent hardware containment | **Not tested** |
-| T-09 | Motor rotation/polarity with suspended wheels, qualified supply | Each channel matches signed command, no over-current | **Not tested** |
+| T-08 | In a motor-disconnected test build, stall the main loop; observe WDT0 first timeout and second-timeout reset; verify STBY remains low during reset | MCU resets after the nominal two-timeout window and the external STBY pull-down keeps the driver disabled | **Not tested** |
+| T-09 | Sensor unplug, transient NACK, CPU fault/brownout | Measured safe motor cutoff; independent hardware containment | **Not tested** |
+| T-10 | Motor rotation/polarity with suspended wheels, qualified supply | Each channel matches signed command, no over-current | **Not tested** |
 | R-01 | Restrained moderate tilt recovery | No positive feedback runaway; documented response | **Not tested** |
 | R-02 | Repeated balance runs | Actual logs/metrics linked to measured datasets | **Not tested** |
 
 ## Operator safety procedure
 
-1. Confirm mechanical restraint, physical motor-battery disconnect, fuse, safe wiring and suitable driver rating.
+1. Confirm mechanical restraint, physical motor-battery disconnect, fuse, safe wiring, suitable driver rating and an external pull-down that holds TB6612 STBY low while MCU pins are high-impedance.
 2. Keep the motor driver supply isolated when first flashing and testing sensor, switch, timers and LEDs.
 3. Measure GPIO with a scope/meter **before** connecting the driver supply. Verify STBY low at startup and reset.
 4. Test motor direction individually at very low duty with wheels raised; record axis/sign truth table.
 5. Select conservative controller gains based on a measured model. Do not rely on constants shown as initial placeholders.
-6. Only proceed to restrained balancing after hardware cutoff works independently of the MCU software.
+6. Only proceed to restrained balancing after hardware cutoff works independently of the MCU software. WDT0 resets the MCU; it does not isolate motor power.
 7. Report all failures, model assumptions, date, board revision, compiler version, test operator and commit SHA.
 
 ## Performance and analysis evidence checklist
