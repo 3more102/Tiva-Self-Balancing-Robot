@@ -15,6 +15,7 @@
 #include "driverlib/pwm.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
+#include "driverlib/watchdog.h"
 #include "controller.h"
 #include "diagnostics.h"
 #include "ai_navigation.h"
@@ -27,6 +28,7 @@
 
 #define CONTROL_HZ 200U
 #define PWM_HZ 20000U
+#define WATCHDOG_TIMEOUT_MS 50U
 #define MPU6050_ADDRESS 0x68U
 #define I2C_TIMEOUT_LOOPS 50000U
 #define MPU6050_WHO_AM_I 0x75U
@@ -46,6 +48,33 @@ static void wait_for_peripheral(uint32_t id)
 #include "imu_backend.h"
 #include "motor_backend.h"
 #include "range_backend.h"
+
+/* WDOG0 is foreground-serviced. At 80 MHz, the first timeout is nominally
+   50 ms; if its raw flag is not cleared, the second timeout resets the MCU.
+   This detects a stalled tick wait or a foreground path that stops progressing.
+   It does NOT remove motor power; external STBY pull-down and motor disconnect
+   remain mandatory. */
+static void watchdog_init(void)
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
+    wait_for_peripheral(SYSCTL_PERIPH_WDOG0);
+    if (WatchdogLockState(WATCHDOG0_BASE)) {
+        WatchdogUnlock(WATCHDOG0_BASE);
+    }
+    WatchdogReloadSet(WATCHDOG0_BASE,
+                      (SysCtlClockGet() / 1000U) * WATCHDOG_TIMEOUT_MS);
+    WatchdogResetEnable(WATCHDOG0_BASE);
+    WatchdogStallEnable(WATCHDOG0_BASE);
+    WatchdogEnable(WATCHDOG0_BASE);
+}
+
+static void watchdog_service(void)
+{
+    /* Clearing the first-timeout flag reloads the watchdog counter. */
+    if (WatchdogIntStatus(WATCHDOG0_BASE, false) != 0U) {
+        WatchdogIntClear(WATCHDOG0_BASE);
+    }
+}
 
 /* CCS watch expressions for shadow-mode navigation diagnostics. */
 static volatile uint32_t g_ai_action_debug = (uint32_t)AI_ACTION_STOP;
@@ -100,11 +129,16 @@ int main(void)
     outputs_init();
     motors_off();
     indicator(GPIO_PIN_2); /* blue: safe/off */
+    watchdog_init();
     imu_ok = imu_init();
+    watchdog_service();
     control_timer_init();
+    watchdog_service();
     range_backend_init(SysCtlClockGet());
+    watchdog_service();
     ai_navigation_init(&ai_state);
     gyro_cal_init(&gyro_cal);
+    watchdog_service();
     if (imu_ok) {
         /* Calibration requires 200 consecutive, upright, still samples
            with SW1 RELEASED. Timeout after 10 s of unsuccessful attempts. */
@@ -113,8 +147,13 @@ int main(void)
             await_tick();
             released = (GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4) &
                         GPIO_PIN_4) != 0U;
-            if (!mpu_sample(&ay, &az, &gx, &gz)) { imu_ok = false; break; }
+            if (!mpu_sample(&ay, &az, &gx, &gz)) {
+                imu_ok = false;
+                watchdog_service();
+                break;
+            }
             (void)gyro_cal_add_axes(&gyro_cal, ay, az, gx, gz, released);
+            watchdog_service();
         }
         if (!gyro_cal_ready(&gyro_cal)) imu_ok = false;
     }
@@ -129,6 +168,9 @@ int main(void)
         bool pressed, balance_armed;
         float angle, output;
         await_tick();
+        /* Service only after a real control tick. If await_tick() or the
+           foreground computation stalls, WDOG0 is allowed to expire. */
+        watchdog_service();
         /* Actual elapsed time, not assumed constant Ts. A missed/abnormal
            sample deadline cuts motor output via the software safety gate. */
         const bool on_time = loop_timing_step(
