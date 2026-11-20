@@ -17,6 +17,7 @@
 #include "driverlib/timer.h"
 #include "controller.h"
 #include "diagnostics.h"
+#include "navigation.h"
 
 #define MOTOR_OUTPUT_ALLOWED 0  /* MUST remain disabled before hardware qualification. */
 #define MOTOR_POLARITY (-1.0f)
@@ -78,6 +79,10 @@ int main(void)
     BalanceSafety safety;
     TiltEstimator estimator;
     BalanceController controller;
+    Navigation navigation;
+    NavigationInput navigation_input = {0}; /* Range backend not wired yet. */
+    NavigationCommand navigation_command;
+    uint32_t navigation_time_ms = 0U;
     SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                    SYSCTL_XTAL_16MHZ); /* 80 MHz */
     FPUEnable();
@@ -107,6 +112,9 @@ int main(void)
     loop_timing_init(&timing, SysCtlClockGet(),
                      TimerValueGet(TIMER1_BASE, TIMER_A));
     balance_controller_init(&controller, 0.016f, 0.0f, 0.0009f);
+    navigation_init(&navigation);
+    /* Autonomy stays disabled until the non-blocking range backend and
+       a separate operator enable input are implemented and verified. */
 
     for (;;) {
         bool pressed;
@@ -138,16 +146,24 @@ int main(void)
             indicator(safety.mode == BALANCE_FAULT ? GPIO_PIN_1 : GPIO_PIN_2);
             continue;
         }
-        output = balance_controller_update(
+        navigation_time_ms += (uint32_t)(dt_s * 1000.0f + 0.5f);
+        navigation_command = navigation_update(
+            &navigation, &navigation_input, navigation_time_ms);
+        output = balance_controller_update_target(
             &controller, angle, gx - estimator.gyro_bias_dps,
-            dt_s);
+            navigation_command.pitch_target_deg, dt_s);
         if (!isfinite(output)) {
             (void)balance_safety_update(&safety, NAN, pressed, false);
             motors_off();
             indicator(GPIO_PIN_1);
             continue;
         }
-        motor_command(MOTOR_POLARITY * output);
+        if (navigation_command.yaw_bias == 0.0f) {
+            motor_command(MOTOR_POLARITY * output);
+        } else {
+            motor_command_differential(MOTOR_POLARITY * output,
+                                       navigation_command.yaw_bias);
+        }
         indicator(MOTOR_OUTPUT_ALLOWED ? GPIO_PIN_3 : GPIO_PIN_2);
     }
 }
