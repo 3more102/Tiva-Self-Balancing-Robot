@@ -24,7 +24,10 @@ flowchart LR
     IMU["MPU6050<br/>accel & gyro"] --> F["Complementary<br/>filter"]
     F --> E
     E --> PID["Sampled PD/PID<br/>target 200 Hz"]
-    PID --> GATE["Safety gate<br/>arming + trip"]
+    RANGE["HC-SR04<br/>front range"] --> NAV["Obstacle state machine<br/>clear / turn / wait-clear"]
+    PID --> MIX["Differential mixer<br/>balance ± steering"]
+    NAV --> MIX
+    MIX --> GATE["Safety gate<br/>arming + trip"]
     SW["SW1 + fault<br/>validation"] --> GATE
     GATE --> DRIVE["Tiva PWM & GPIO<br/>TB6612FNG"]
     DRIVE --> WHEELS["Two motors<br/>and wheels"]
@@ -40,12 +43,13 @@ flowchart LR
 |---|---|---|
 | Microcontroller | **TI EK-TM4C123GXL**, TM4C123GH6PM | 80 MHz Cortex-M4F; I²C, PWM, GPIO and onboard SW1 |
 | IMU | MPU6050 module | Three-axis acceleration and angular rate; verify real breakout's voltage and mounting |
+| Range sensor | HC-SR04-compatible ultrasonic module | Optional front obstacle sensing; ECHO must be level-shifted to 3.3 V |
 | Motor driver | TB6612FNG dual H-bridge | Independent direction/PWM; **verify motor stall current** |
 | Actuation | Two brushed DC geared motors | Exact gear ratio, torque and current **TBD** |
 | Structure | Two wheels + supported vertical chassis | Mass, inertia, wheel radius and COM **TBD** |
 | Supply | Battery, regulator, fuse and accessible motor cutoff | Values and schematic **TBD**; never power motors from MCU pins |
 
-**Planned signal map:** I²C0: PB2/PB3; PWM: PB6/PB7; motor direction: PC4–PC7; driver STBY: PA5; SW1: PF4. Board-specific shared pins and voltage warnings are detailed in [hardware/wiring.md](hardware/wiring.md).
+**Planned signal map:** I²C0: PB2/PB3; PWM: PB6/PB7; motor direction: PC4–PC7; driver STBY: PA5; SW1: PF4; ultrasonic TRIG/ECHO: PD2/PD3 (ECHO level-shifted). Board-specific shared pins and voltage warnings are detailed in [hardware/wiring.md](hardware/wiring.md).
 
 ```mermaid
 flowchart TD
@@ -67,7 +71,9 @@ This is an **illustrative block diagram, not the electrical schematic** required
 - Nominal loop target: **200 Hz (5 ms)**; PWM: **20 kHz**. Timer1A downcounter now supplies elapsed per-cycle `dt` and software rejects cycles outside the provisional 2.5–8 ms range. **Real timing/jitter are not measured on hardware**.
 - PD/PID controller with conditional anti-windup and normalized output clamp `|u| ≤ 0.7`; gains are **not tuned for a physical robot**.
 - **Stationary gyro calibration:** 200 consecutive upright/released-switch samples, ±6° pitch, magnitude checks, 0.75 deg/s provisional gyro noise bound and Welford mean/variance accumulation. Calibration attempts time out into disabled state.
-- Guard conditions on invalid sensor readings and invalid measured update intervals, including missed-sample faults.
+- Guard conditions on invalid IMU readings and invalid measured update intervals, including missed-sample faults.
+- Non-blocking HC-SR04 range capture using PD3 edge interrupts and Timer1A timestamps; range timeout never blocks the balance loop.
+- Obstacle navigation state machine (CLEAR / TURNING / WAIT_CLEAR) with 25 cm trigger, 40 cm clear hysteresis, alternating 650 ms differential turns and a provisional 0.16 steering bias. Host-tested only; yaw/encoder feedback and physical tuning are outstanding.
 - **Release-to-arm** logic: observe switch release; require 40 consecutive upright sample checks (≤8°) with switch held, then allow the software command gate.
 - **Trip:** ≥25° pitch, sensor failure or invalid calculation -> disable the driver; fault requires release before rearming. A fatal I²C failure is latched until hardware reset.
 - **Compile-time actuator interlock**: `MOTOR_OUTPUT_ALLOWED 0` is the default in `firmware/tiva/src/main.c`. Motor driver STBY remains LOW; code alone does **not** replace a motor-battery fuse, power switch or hardware cutoff.
@@ -84,7 +90,7 @@ stateDiagram-v2
   FAULT --> DISARMED: valid sensor + release
 ```
 
-**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
+**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Obstacle avoidance design](docs/obstacle_avoidance.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
 
 ## Getting started
 
@@ -109,6 +115,12 @@ gcc -std=c11 -Wall -Wextra -Werror -pedantic \
     -lm -o test_diagnostics
 ./test_diagnostics
 python3 -m unittest discover -s tests -p 'test_simulation.py'
+
+gcc -std=c11 -Wall -Wextra -Werror -pedantic \
+    -Ifirmware/tiva/include \
+    firmware/tiva/src/obstacle_avoidance.c tests/test_obstacle_avoidance.c \
+    -lm -o test_obstacle_avoidance
+./test_obstacle_avoidance
 ```
 
 GitHub Actions also runs these **host-side** checks after pushes and pull requests. Their success **does not establish a working Tiva firmware build or safe motor actuation**.
@@ -146,8 +158,11 @@ Tiva-Self-Balancing-Robot/
 ├── firmware/tiva/
 │   ├── include/controller.h              # control/safety interfaces
 │   ├── include/diagnostics.h             # calibration + timing interfaces
+│   ├── include/obstacle_avoidance.h        # navigation state machine
 │   ├── src/controller.c                  # estimator, PID and safety machine
 │   ├── src/diagnostics.c                 # stationary gyro calibration / timing
+│   ├── src/obstacle_avoidance.c            # timed differential steering
+│   ├── src/ultrasonic_backend.h            # non-blocking HC-SR04 capture
 │   ├── src/main.c                        # TivaWare 200 Hz application
 │   ├── src/imu_backend.h                 # MPU6050 I2C functions
 │   ├── src/motor_backend.h               # TB6612FNG direction / PWM / STBY
@@ -177,6 +192,7 @@ Tiva-Self-Balancing-Robot/
 │       └── STAGE3_final_report.md
 ├── tests/test_controller.c               # host-side estimator/PID/safety tests
 ├── tests/test_diagnostics.c              # calibration & timer-wrap tests
+├── tests/test_obstacle_avoidance.c         # navigation state-machine tests
 ├── tests/test_simulation.py              # theoretical model assertions
 ├── .github/workflows/host-tests.yml
 └── tools/publish_github.ps1
@@ -194,9 +210,9 @@ Tiva-Self-Balancing-Robot/
 
 ## What can be claimed today?
 
-**Implemented in source:** portable C pitch estimator, guarded PD/PID, safety state machine, gyro calibration, Timer1 elapsed-period guard, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
+**Implemented in source:** portable C pitch estimator, guarded PD/PID, safety state machine, gyro calibration, Timer1 elapsed-period guard, non-blocking HC-SR04 capture, obstacle-navigation state machine, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
 **Verified:** host-side regression tests and deterministic simulation checks, based on GitHub Actions when green.  
-**Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, actual stationary IMU calibration, sampling timing, assembled robot, balancing, physical protection, measured telemetry and hardware performance.
+**Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, actual stationary IMU calibration, ultrasonic range accuracy, real turn response, sampling timing, assembled robot, balancing, physical protection, measured telemetry and hardware performance.
 
 ## References
 

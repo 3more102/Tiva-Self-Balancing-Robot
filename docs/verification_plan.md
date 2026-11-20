@@ -26,6 +26,9 @@
 | C-07 | Gyro bias calibration: switch, motion, 200 valid samples and noise bounds | No completion for unstable/noisy samples | Automated host C tests; hardware pending |
 | C-08 | Timer1 unsigned downcounter wrap, 5 ms acceptance, timing outliers | Accept good clock ticks, reject abnormal interval | Automated host C tests; target timing unverified |
 | S-01 | Theoretical pitch-only PD / open-loop regression | Internally consistent numerical results | Automated Python, **not measured robot data** |
+| N-01 | Obstacle state machine: clear, near obstacle, timed turn, wait-clear hysteresis and alternating direction | Deterministic host assertions | Automated host C tests only |
+| N-02 | HC-SR04 echo edge capture and no-echo timeout | Valid 2–300 cm pulse mapping; timeout is non-blocking | **Not target-tested** |
+| N-03 | Physical obstacle turn while maintaining balance | Repeatable turn direction without pitch runaway | **Not tested**
 | D-01 | Check relative Markdown links and code fences | No broken links, balanced fences | Automated |
 | T-01 | Compile all embedded source with CCS for TM4C123 | No target compiler/link errors | **Not tested** |
 | T-02 | Inspect GPIO levels / power without motors connected | PA5 LOW, safe pin voltages | **Not tested** |
@@ -55,7 +58,7 @@
 - [ ] Current limiting, supply brownout and stall current verification
 - [ ] Reproducible CCS build (compiler/TivaWare version, startup and linker files)
 - [ ] Real waveform captures for MCU GPIO, I2C, PWM and STBY
-- [ ] Raw timing, safety and sensor captures (software calculations are not measured timing profiles)
+- [ ] Raw timing, safety, IMU and ultrasonic captures (software calculations are not measured timing profiles)
 - [ ] Recorded measured plant parameters
 - [ ] Control gain derivation and validation on real robot
 - [ ] MATLAB analysis with meaningful comparison plots

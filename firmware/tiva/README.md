@@ -32,7 +32,9 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 | User switch | PF4 | Onboard SW1, active low, hold-to-enable only after initial release |
 | Status | PF1 (red), PF2 (blue), PF3 (green) | Fault, disabled, enabled; unverified target |
 | Timer0A | No pin | 200 Hz desired periodic sample wake-up |
-| Timer1A | No pin | 32-bit free-running downcounter used to calculate elapsed control dt |
+| Timer1A | No pin | 32-bit free-running downcounter used to calculate elapsed control dt and ultrasonic echo pulse width |
+| GPIO | PD2 | HC-SR04 TRIG; approximately 10 μs pulse every 60 ms |
+| GPIO interrupt | PD3 | HC-SR04 ECHO rising/falling edge capture; 5 V output must be divided to 3.3 V |
 
 Before using PWM, inspect the board's PB6↔PD0 and PB7↔PD1 hard links, board revision and pin mux for conflicts.
 
@@ -48,8 +50,8 @@ The gyro offset is estimated only after 200 **consecutive** valid, stationary, u
 
 - Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing, CPU hangs and counter overflow/aliasing after ~53.7 s remain limitations.
 - I2C transaction handling has a software-bounded busy poll; timeouts, bus recovery, transaction sequencing and maximum duration still require real-target tests.
-- No wheel encoders, independent watchdog, UART logger, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist.
+- No wheel encoders, yaw feedback, velocity controller, independent watchdog, UART logger, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist. Obstacle avoidance is an initial single-sensor timed-steering foundation only.
 - Current MATLAB LQR is an illustrative comparison, not deployed code. Control gains are placeholders.
 - Software output gating does not substitute for power isolation and mechanical restraint.
 
-Next evidence: capture CCS build log, scope traces (PB6/PB7/PA5), static IMU readings and measured loop timing; then proceed through [verification_plan.md](../../docs/verification_plan.md) and [calibration / timing diagrams](../../docs/calibration_timing.md).
+Next evidence: capture CCS build log, scope traces (PB6/PB7/PA5/PD2/PD3), static IMU readings, ultrasonic pulse-width checks and measured loop timing; then proceed through [verification_plan.md](../../docs/verification_plan.md) and [calibration / timing diagrams](../../docs/calibration_timing.md).

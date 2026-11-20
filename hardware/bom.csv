@@ -2,6 +2,7 @@ Item,Part / specification,Quantity,Unit price EGP (research),Total EGP,Vendor UR
 Microcontroller,TI EK-TM4C123GXL Tiva C LaunchPad,1,TBD,TBD,TBD,Confirm available TI board
 IMU,MPU6050 3.3V-safe breakout,1,TBD,TBD,https://ram-e-shop.com/product/kit-imu-mpu6050-original/,Check AD0/pull-ups
 Motor driver,TB6612FNG dual H-bridge breakout,1,TBD,TBD,TBD,Choose current limit above stall current
+Ultrasonic range sensor,HC-SR04-compatible module,1,TBD,TBD,TBD,Front obstacle sensing; level-shift ECHO to 3.3 V
 Gearmotor,DC geared motor suitable for robot mass,2,TBD,TBD,TBD,Specify rated and stall currents and gear ratio
 Wheels,Matching motor wheels,2,TBD,TBD,TBD,Wheel radius is needed for dynamic model
 Chassis,3D printed bracket / structural frame,1,TBD,TBD,TBD,CAD and actual weight needed

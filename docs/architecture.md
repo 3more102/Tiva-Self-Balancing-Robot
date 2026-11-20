@@ -101,6 +101,8 @@ stateDiagram-v2
 | PA5 | STBY | Driver standby | output | **LOW by default** |
 | PF4 | SW1 | Onboard push-button | input | active-low; hold-to-enable |
 | PF1 / PF2 / PF3 | RGB LEDs | Onboard LEDs | output | error / standby / enabled indication |
+| PD2 | HC-SR04 TRIG | Range sensor | output | 3.3 V trigger; verify module threshold |
+| PD3 | HC-SR04 ECHO | Range sensor | input | 5 V echo must be divided to 3.3 V |
 
 Compare with [hardware/wiring.md](../hardware/wiring.md) and the [EK-TM4C123GXL manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf).
 
@@ -111,6 +113,7 @@ Compare with [hardware/wiring.md](../hardware/wiring.md) and the [EK-TM4C123GXL 
 | Sensor orientation | MPU6050 accel + gyro; complementary filter | Portable C source and host tests | I2C waveform/real sensor log |
 | Closed-loop balance | PID + TB6612 PWM | Algorithm source | Actual motor sign/gains and repeatable tests |
 | Safety | STBY low, off switch, trip angle, arming state machine | Static code + host tests | End-to-end physical cutoff timing |
+| Obstacle avoidance | HC-SR04 range capture + timed differential steering | Portable state-machine tests; backend source | Sensor wiring, range accuracy, yaw response and real obstacle trials |
 | Control analysis | MATLAB linear model and nominal 200 Hz discretization | MATLAB script | Validated physical parameters / log data |
 | Stage 1 architecture | These Mermaid diagrams, pin map, component responsibilities | This document | Reviewed electrical schematic |
 | Mechanical integration | Two-wheel chassis model | Concept | CAD, dimensions, center of mass |
