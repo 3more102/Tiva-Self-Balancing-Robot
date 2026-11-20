@@ -35,7 +35,7 @@ The navigation interface is independent of TivaWare. The sensor backend supplies
 | Front clear distance | 500 mm | Require this distance for re-entry to cruise |
 | Side clear distance | 500 mm | A side must meet this distance before a turn |
 | Front sample maximum age | 250 ms | Stale front readings stop travel |
-| Side sample maximum age | 750 ms | Stale side readings cannot authorize a turn |
+| Side sample maximum age | 250 ms | Side clearance must remain fresh during a turn |
 | Turn duration | 350 ms | Provisional open-loop turn duration |
 | Clear confirmation | 3 distinct samples | Avoid resuming on one transient echo |
 | Maximum turns per obstruction | 2 | Stop retrying if the path remains blocked |
