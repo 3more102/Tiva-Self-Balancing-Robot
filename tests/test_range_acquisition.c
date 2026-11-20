@@ -212,7 +212,9 @@ static void test_trigger_is_only_started_after_quiet_interval(void)
 
     fake.ticks = INTER_PING_TICKS - 1U;
     fake.ms = 59U;
-    assert(!range_acquisition_step(&acquisition, NULL));
+    /* The 60 ms quiet-time check is also a 60 ms timeout poll, so the
+       first sensor's 25 ms no-echo result is published as invalid here. */
+    assert(range_acquisition_step(&acquisition, NULL));
     assert(fake.trigger_count == 1U);
 
     fake.ticks = INTER_PING_TICKS;
