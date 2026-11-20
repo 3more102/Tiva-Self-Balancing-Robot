@@ -47,7 +47,7 @@ static bool mpu_sample(float *ay_g, float *az_g, float *gx_dps,
     uint8_t bytes[14];
     Mpu6050Sample sample;
 
-    if (ay_g == NULL || az_g == NULL || gx_dps == NULL || gz_dps == NULL)
+    if (ay_g == 0 || az_g == 0 || gx_dps == 0 || gz_dps == 0)
         return false;
     if (!mpu_read(MPU6050_ACCEL_XOUT_H, bytes, 14U) ||
         !mpu6050_decode_sample(bytes, &sample))
