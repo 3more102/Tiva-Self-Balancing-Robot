@@ -61,20 +61,21 @@ static bool start_turn(Navigation *navigation,
     const bool right_clear = right_fresh && input->right_mm >= NAV_SIDE_CLEAR_MM;
     int8_t direction = 0;
 
-    if (!left_clear && !right_clear) return false;
-
-    if (left_clear && right_clear) {
-        /* On a retry, try the opposite side if it is still clear. */
-        if (navigation->turn_attempts > 0U &&
-            navigation->last_turn_direction != 0 &&
-            ((-navigation->last_turn_direction < 0 && left_clear) ||
-             (-navigation->last_turn_direction > 0 && right_clear))) {
-            direction = (int8_t)-navigation->last_turn_direction;
-        } else {
-            direction = input->right_mm >= input->left_mm ? 1 : -1;
+    if (navigation->turn_attempts > 0U &&
+        navigation->last_turn_direction != 0) {
+        /* Retry only on the opposite side, and only while it is freshly clear. */
+        direction = (int8_t)-navigation->last_turn_direction;
+        if ((direction < 0 && !left_clear) ||
+            (direction > 0 && !right_clear)) {
+            return false;
         }
     } else {
-        direction = left_clear ? -1 : 1;
+        if (!left_clear && !right_clear) return false;
+        if (left_clear && right_clear) {
+            direction = input->right_mm >= input->left_mm ? 1 : -1;
+        } else {
+            direction = left_clear ? -1 : 1;
+        }
     }
 
     navigation->mode = direction < 0 ? NAV_TURN_LEFT : NAV_TURN_RIGHT;
