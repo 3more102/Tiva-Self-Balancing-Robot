@@ -69,7 +69,7 @@ static void await_tick(void)
 
 int main(void)
 {
-    float ay, az, gx;
+    float ay, az, gx, gz;
     uint32_t i;
     float dt_s = 0.0f;
     GyroCalibration gyro_cal;
@@ -96,8 +96,8 @@ int main(void)
             await_tick();
             released = (GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4) &
                         GPIO_PIN_4) != 0U;
-            if (!mpu_sample(&ay, &az, &gx)) { imu_ok = false; break; }
-            (void)gyro_cal_add(&gyro_cal, ay, az, gx, released);
+            if (!mpu_sample(&ay, &az, &gx, &gz)) { imu_ok = false; break; }
+            (void)gyro_cal_add_axes(&gyro_cal, ay, az, gx, gz, released);
         }
         if (!gyro_cal_ready(&gyro_cal)) imu_ok = false;
     }
@@ -124,7 +124,7 @@ int main(void)
             indicator(GPIO_PIN_1);
             continue;
         }
-        if (!imu_ok || !mpu_sample(&ay, &az, &gx)) {
+        if (!imu_ok || !mpu_sample(&ay, &az, &gx, &gz)) {
             imu_ok = false; /* Fatal sensor fault requires a hardware reset. */
             (void)balance_safety_update(&safety, NAN, pressed, false);
             motors_off();
