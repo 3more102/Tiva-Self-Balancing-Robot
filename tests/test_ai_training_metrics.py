@@ -50,7 +50,7 @@ class TinyMLClassificationMetricsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             classification_metrics(np.array([0.0, 1.0]), valid)
         with self.assertRaises(ValueError):
-            classification_metrics(valid, np.array([0, 3], dtype=np.int64))
+            classification_metrics(valid, np.array([0, 3], dtype=np.int64), ("A", "B"))
         with self.assertRaises(ValueError):
             classification_metrics(valid, valid, ("duplicate", "duplicate"))
 
