@@ -36,6 +36,7 @@
 | T-07 | Physical switch/debounce and safe arming | No surprise motor activation, including reset while held | **Not tested** |
 | T-08 | Sensor unplug, transient NACK, CPU fault/brownout | Measured safe motor cutoff; independent hardware containment | **Not tested** |
 | T-09 | Motor rotation/polarity with suspended wheels, qualified supply | Each channel matches signed command, no over-current | **Not tested** |
+| T-10 | With motor battery disconnected, run a test build that stops servicing WDOG0 after initialization; observe reset and verify STBY remains low through reset | Reset after the second watchdog timeout (nominally about 100 ms from a fresh service); external STBY pull-down keeps driver disabled | **Not tested** |
 | R-01 | Restrained moderate tilt recovery | No positive feedback runaway; documented response | **Not tested** |
 | R-02 | Repeated balance runs | Actual logs/metrics linked to measured datasets | **Not tested** |
 

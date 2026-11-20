@@ -15,6 +15,7 @@
 #include "driverlib/pwm.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
+#include "driverlib/watchdog.h"
 #include "controller.h"
 #include "diagnostics.h"
 
@@ -27,6 +28,7 @@
 #define PWM_HZ 20000U
 #define MPU6050_ADDRESS 0x68U
 #define I2C_TIMEOUT_LOOPS 50000U
+#define WATCHDOG_TIMEOUT_MS 50U
 #define MPU6050_WHO_AM_I 0x75U
 #define MPU6050_ACCEL_XOUT_H 0x3BU
 #define MPU6050_GYRO_CONFIG 0x1BU
@@ -43,6 +45,28 @@ static void wait_for_peripheral(uint32_t id)
 
 #include "imu_backend.h"
 #include "motor_backend.h"
+
+/* WDOG0 uses the TM4C123 system clock. TivaWare generates an interrupt
+   on the first timeout and a reset on the second if it remains uncleared.
+   With a 50 ms load, a persistent main-loop stall resets in about 100 ms. */
+static void watchdog_init(void)
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
+    wait_for_peripheral(SYSCTL_PERIPH_WDOG0);
+    if (WatchdogLockState(WATCHDOG0_BASE)) {
+        WatchdogUnlock(WATCHDOG0_BASE);
+    }
+    WatchdogReloadSet(WATCHDOG0_BASE,
+                      (SysCtlClockGet() / 1000U) * WATCHDOG_TIMEOUT_MS);
+    WatchdogResetEnable(WATCHDOG0_BASE);
+    WatchdogStallEnable(WATCHDOG0_BASE);
+    WatchdogEnable(WATCHDOG0_BASE);
+}
+
+static void watchdog_kick(void)
+{
+    WatchdogIntClear(WATCHDOG0_BASE);
+}
 
 static void control_timer_init(void)
 {
@@ -65,6 +89,7 @@ static void await_tick(void)
 {
     while ((TimerIntStatus(TIMER0_BASE, false) & TIMER_TIMA_TIMEOUT) == 0U) { }
     TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    watchdog_kick();
 }
 
 int main(void)
@@ -87,6 +112,7 @@ int main(void)
     indicator(GPIO_PIN_2); /* blue: safe/off */
     imu_ok = imu_init();
     control_timer_init();
+    watchdog_init();
     gyro_cal_init(&gyro_cal);
     if (imu_ok) {
         /* Calibration requires 200 consecutive, upright, still samples

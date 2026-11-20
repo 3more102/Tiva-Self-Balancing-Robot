@@ -14,6 +14,7 @@ Board: **TI EK-TM4C123GXL / TM4C123GH6PM**; driver **TB6612FNG**; sensor **MPU60
 | Tiva PC6 | TB6612 BIN1 | Right direction 1 |
 | Tiva PC7 | TB6612 BIN2 | Right direction 2 |
 | Tiva PA5 | TB6612 STBY | Driver enable, low = disabled |
+| External pull-down | TB6612 STBY to logic GND | Holds driver disabled while PA5 is high-impedance during power-up, reset or MCU brownout; select/check value for the actual driver module |
 | Tiva 3.3 V | TB6612 VCC | Driver logic voltage, check module specifications |
 | Motor battery positive | TB6612 VM | Motor supply, size/fuse for stall current |
 | Battery ground + Tiva ground + sensor ground | TB6612 GND and common GND | Required common reference |
@@ -27,7 +28,7 @@ Board: **TI EK-TM4C123GXL / TM4C123GH6PM**; driver **TB6612FNG**; sensor **MPU60
 
 1. Verify controller ground, motor power return, reverse-polarity protection and appropriate fusing. Ensure regulator current and battery motor stall-current headroom.
 2. Confirm **actual** MPU module IO and voltage limits, breakout pull-ups, TB6612 logic voltage and VM range from manufacturer datasheets; do not assume generic breakout labels are safe at 5 V.
-3. Motors **must never** be connected to MCU GPIO directly. Prefer physical kill switch on motor battery circuit. Keep wheels clear during direction/velocity testing.
+3. Motors **must never** be connected to MCU GPIO directly. Fit and verify an external STBY pull-down so a watchdog or brownout reset cannot leave the driver enabled while PA5 is high-impedance. Use a physical kill switch on the motor-battery circuit; software watchdog and SW1 are not emergency disconnects. Keep wheels clear during direction/velocity testing.
 4. Verify MPU sensor geometry: **+X axle; +Y forward; +Z up**. At rest `accel_z` should read close to +1g; when tilted forward confirm accelerometer angle sign and X-gyro sign agree.
 5. With wheels lifted, assert temporary low duty and verify signed direction separately per wheel before any closed-loop trial. Sign configuration in `main.c` is a *hypothesis*.
 6. Monitor supply sag/logic resets. Mechanical support/tether for first balance attempts is required.

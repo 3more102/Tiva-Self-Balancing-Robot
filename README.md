@@ -68,6 +68,7 @@ This is an **illustrative block diagram, not the electrical schematic** required
 - PD/PID controller with conditional anti-windup and normalized output clamp `|u| ≤ 0.7`; gains are **not tuned for a physical robot**.
 - **Stationary gyro calibration:** 200 consecutive upright/released-switch samples, ±6° pitch, magnitude checks, 0.75 deg/s provisional gyro noise bound and Welford mean/variance accumulation. Calibration attempts time out into disabled state.
 - Guard conditions on invalid sensor readings and invalid measured update intervals, including missed-sample faults.
+- TM4C123 WDOG0 supervision: nominal 50 ms first timeout, reset on the second uncleared timeout, serviced at the control-tick boundary; target verification and external STBY pull-down checks remain pending.
 - **Release-to-arm** logic: observe switch release; require 40 consecutive upright sample checks (≤8°) with switch held, then allow the software command gate.
 - **Trip:** ≥25° pitch, sensor failure or invalid calculation -> disable the driver; fault requires release before rearming. A fatal I²C failure is latched until hardware reset.
 - **Compile-time actuator interlock**: `MOTOR_OUTPUT_ALLOWED 0` is the default in `firmware/tiva/src/main.c`. Motor driver STBY remains LOW; code alone does **not** replace a motor-battery fuse, power switch or hardware cutoff.
@@ -84,7 +85,7 @@ stateDiagram-v2
   FAULT --> DISARMED: valid sensor + release
 ```
 
-**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
+**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Watchdog reset / motor containment](docs/watchdog_safety.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md)
 
 ## Getting started
 
