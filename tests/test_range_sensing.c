@@ -18,7 +18,7 @@ static void test_front_measurement_and_conversion(void)
     RangeArray array;
     RangeSnapshot snapshot;
     uint8_t sensor;
-    range_array_init(&array);
+    range_array_init(&array, 1U);
     sensor = range_array_next_trigger(&array, 100U, 100000U);
     assert(sensor == RANGE_FRONT);
     complete_echo(&array, sensor, 100100U, 2000U, 102U);
@@ -34,7 +34,7 @@ static void test_three_sensors_are_sequential_with_quiet_gap(void)
 {
     RangeArray array;
     uint8_t sensor;
-    range_array_init(&array);
+    range_array_init(&array, 1U);
 
     sensor = range_array_next_trigger(&array, 0U, 0U);
     assert(sensor == RANGE_FRONT);
@@ -57,7 +57,7 @@ static void test_three_sensors_are_sequential_with_quiet_gap(void)
 static void test_timeout_when_no_echo_arrives(void)
 {
     RangeArray array;
-    range_array_init(&array);
+    range_array_init(&array, 1U);
     assert(range_array_next_trigger(&array, 10U, 10000U) == RANGE_FRONT);
     range_array_poll(&array, 22999U);
     assert(array.active_sensor == RANGE_FRONT);
@@ -70,7 +70,7 @@ static void test_timeout_when_no_echo_arrives(void)
 static void test_stuck_high_echo_times_out(void)
 {
     RangeArray array;
-    range_array_init(&array);
+    range_array_init(&array, 1U);
     assert(range_array_next_trigger(&array, 10U, 10000U) == RANGE_FRONT);
     range_array_echo_edge(&array, RANGE_FRONT, true, 10500U, 10U);
     range_array_poll(&array, 23500U);
@@ -82,7 +82,7 @@ static void test_invalid_pulse_does_not_replace_last_good_sample(void)
 {
     RangeArray array;
     RangeSnapshot snapshot;
-    range_array_init(&array);
+    range_array_init(&array, 1U);
     assert(range_array_next_trigger(&array, 0U, 0U) == RANGE_FRONT);
     complete_echo(&array, RANGE_FRONT, 100U, 2000U, 2U);
 
@@ -99,7 +99,7 @@ static void test_timer_rollover_and_snapshot_staleness(void)
     RangeArray array;
     RangeSnapshot snapshot;
     uint32_t rise = 0xFFFFFF00U;
-    range_array_init(&array);
+    range_array_init(&array, 1U);
     assert(range_array_next_trigger(&array, 100U, rise) == RANGE_FRONT);
     complete_echo(&array, RANGE_FRONT, rise, 2000U, 101U);
     range_array_snapshot(&array, 352U, 250U, 750U, &snapshot);
@@ -114,7 +114,7 @@ static void test_minimum_echo_and_model_range_cap(void)
 {
     RangeArray array;
     RangeSnapshot snapshot;
-    range_array_init(&array);
+    range_array_init(&array, 1U);
     assert(range_array_next_trigger(&array, 0U, 0U) == RANGE_FRONT);
     complete_echo(&array, RANGE_FRONT, 100U, RANGE_ECHO_MIN_US, 1U);
     range_array_snapshot(&array, 1U, 250U, 750U, &snapshot);
@@ -132,7 +132,7 @@ static void test_minimum_echo_and_model_range_cap(void)
 static void test_failed_hardware_trigger_can_be_cancelled(void)
 {
     RangeArray array;
-    range_array_init(&array);
+    range_array_init(&array, 1U);
     assert(range_array_next_trigger(&array, 0U, 0U) == RANGE_FRONT);
     range_array_cancel_trigger(&array, RANGE_FRONT);
     assert(array.active_sensor == RANGE_SENSOR_NONE);
