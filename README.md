@@ -90,7 +90,7 @@ stateDiagram-v2
   FAULT --> DISARMED: valid sensor + release
 ```
 
-**Safety and timing review:** [Firmware verification plan](docs/verification_plan.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md) · [Watchdog reset and motor-output containment](docs/watchdog_safety.md)
+**Safety and integration review:** [Firmware verification plan](docs/verification_plan.md) · [Integration sequence](docs/integration_sequence.md) · [AI architecture](docs/ai_architecture.md) · [Calibration + Timer1 diagrams](docs/calibration_timing.md) · [Optimizations + engineering gaps](docs/optimization_and_design_review.md) · [Watchdog safety](docs/watchdog_safety.md)
 
 ## Obstacle avoidance — current software milestone
 
