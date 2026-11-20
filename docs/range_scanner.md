@@ -69,3 +69,14 @@ gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
 ```
 
 Tests cover round-robin order, one-active-sensor enforcement, wrong-sensor edge rejection, valid/invalid/timeout publication, range bounds, timer rollover and invalid API arguments. `tests/test_range_navigation.c` verifies front/left/right field mapping, missing samples, timeout handling and the independent autonomy-enable gate.
+
+To compile and run the scanner-to-navigation adapter tests:
+
+```sh
+gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
+  -Ifirmware/tiva/include \
+  firmware/tiva/src/navigation.c firmware/tiva/src/range_capture.c \
+  firmware/tiva/src/range_scanner.c firmware/tiva/src/range_navigation.c \
+  tests/test_range_navigation.c -lm -o /tmp/test_range_navigation
+/tmp/test_range_navigation
+```
