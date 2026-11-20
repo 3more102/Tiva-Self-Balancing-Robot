@@ -15,7 +15,7 @@
 
 **Additional implementation:** `diagnostics.c` now includes a Welford mean/variance gyroscope calibration with stationary/switch acceptance and wrap-safe Timer1 elapsed-period diagnostics, and `simulation/run_pitch_sim.py` supplies a clearly labeled theoretical model with offline tests. The MATLAB plotter rejects theoretical provenance. See [calibration and timing design](calibration_timing.md) and [experimental protocol](experimental_protocol.md).
 
-These changes are mostly **safety/reliability improvements**, not benchmarked CPU optimizations. Descriptions such as “optimized balancing,” “production ready,” or “zero hardware defects” would be unsupported.
+The MCU application now also configures WDT0 progress supervision: a nominal 50 ms first timeout and reset on the second timeout if the raw flag is not cleared by the running control loop. This source-level change is not covered by portable host tests and is not target-verified. These changes are mostly **safety/reliability improvements**, not benchmarked CPU optimizations. Descriptions such as “optimized balancing,” “production ready,” or “zero hardware defects” would be unsupported.
 
 ## Next actions in recommended priority order
 
@@ -30,9 +30,9 @@ These changes are mostly **safety/reliability improvements**, not benchmarked CP
 
 ### P1 — time determinism and fault containment
 
-7. **Partially implemented:** Timer1 elapsed-period sampling and preliminary out-of-window fault (host-tested); **still required:** scope-verified absolute timing, measured worst-case execution time, jitter statistics, missed flags/counters exposed to logs and hardware watchdog.
+7. **Partially implemented:** Timer1 elapsed-period sampling and preliminary out-of-window fault (host-tested); WDT0 progress supervision added in source; **still required:** scope-verified absolute timing, measured worst-case execution time, jitter statistics, missed flags/counters exposed to logs and target-verified watchdog reset behavior.
 8. Add I²C transaction timeout measurements and errors per type; verify safe recovery on NACK, disconnect and stuck clock/data.
-9. Add a true independent watchdog / brownout strategy. The existing software gate cannot recover if the CPU stops executing.
+9. **Implemented in source:** internal WDT0 progress supervision (nominal 50 ms first timeout, reset on second unserviced timeout). **Still required:** verify timeout/reset on the TM4C123 target and add an independent motor-power cutoff/brownout strategy; the MCU watchdog is not an electrical interlock.
 10. **Partially implemented:** stationary upright gyro bias/variance calibration with timeout (host-tested). Still add switch debounce, accelerometer calibration/offset, temperature drift study and hardware confirmation.
 11. Add sampled telemetry (timestamp, angle, gyro, command, safety state, battery/current), using DMA/ring buffers or low-priority output to avoid blocking 5 ms control loop.
 12. Set hardware-validated limits for velocity, torque/current and repeated re-arming after faults.
@@ -69,7 +69,7 @@ These changes are mostly **safety/reliability improvements**, not benchmarked CP
 
 - PWM and I²C peripheral APIs need a CCS/TivaWare compile to establish correctness.
 - The current motor code can only drive after manually changing a compile-time safety setting, and the physical polarity is unverified.
-- No current sensor, wheel encoder, physical e-stop circuit design, schematic, CAD, hardware watchdog or production release has been validated.
+- No current sensor, wheel encoder, physical e-stop circuit, independent motor-power cutoff, schematic, CAD or production release has been validated. WDT0 exists in source but is not target-verified.
 - The existing MATLAB `model_and_design.m` has illustrative plant constants, not fitted robot values.
 - The official assignment requires Arduino: the microcontroller change is unresolved until instructor confirms it.
 
