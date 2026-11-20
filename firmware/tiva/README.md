@@ -19,7 +19,8 @@ Official platform: https://www.ti.com/tool/EK-TM4C123GXL
 3. Add `include` and the TivaWare root to include directories, and link the correct version of the TivaWare driverlib.
 4. Enable appropriate Cortex-M4F FPU ABI/compiler settings and `math` routines (`atan2f`, `fabsf`, `isfinite`, `NAN`).
 5. **Do not alter `MOTOR_OUTPUT_ALLOWED 0`** during first sensor/logic tests. Verify STBY remains low.
-6. Capture any compilation errors verbatim. Apply corrections only against the actual target version, then document CCS/TivaWare versions and commit SHA.
+6. Confirm the `driverlib/watchdog.h` API compiles and that WDT0 can reset a deliberately stalled test build.
+7. Capture any compilation errors verbatim. Apply corrections only against the actual target version, then document CCS/TivaWare versions and commit SHA.
 
 ## 3. Pin and startup assumptions
 
@@ -42,13 +43,15 @@ The pure C safety logic in `controller.c` starts DISARMED, requires a prior swit
 
 The gyro offset is estimated only after 200 **consecutive** valid, stationary, upright samples with SW1 released, subject to the provisional sample-variance limit and a nominal 10-second startup attempt window. Timer1A measures elapsed per-cycle dt; the software rejects loops outside the provisional 2.5–8 ms window. **Neither real timing nor sensor noise has been measured on a board.** A complementary filter combines `atan2(ay, az)` with bias-corrected gyro X. The PID controller clamps command to ±0.7 and avoids integral windup.
 
+WDT0 is configured for a nominal **100 ms** first timeout and MCU reset on the **second unserviced timeout**. The timeout flag is cleared after each completed calibration sample or control-loop iteration, not from a separate timer/interrupt handler. This provides recovery from a stalled foreground loop; it shares the system clock and is not protection against system-clock failure. The watchdog reset path has not been tested on the target board.
+
 **Polarity flags in `main.c` are provisional.** Verify both motors and sensor signs with wheels raised and power limited before enabling driver output.
 
 ## 5. Important limits
 
-- Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing, CPU hangs and counter overflow/aliasing after ~53.7 s remain limitations.
+- Timer1A elapsed-time measurement improves over a constant 5 ms assumption, but no hardware measurements or worst-case execution timing exist. Timer0A flag coalescing and counter overflow/aliasing after ~53.7 s remain limitations. WDT0 is intended to reset a stalled foreground loop after two unserviced 100 ms timeouts; its reset timing and safe STBY behavior still require a bench test.
 - I2C transaction handling has a software-bounded busy poll; timeouts, bus recovery, transaction sequencing and maximum duration still require real-target tests.
-- No wheel encoders, independent watchdog, UART logger, hardware emergency switch design, current monitoring, real sensor calibration report or power-stage approval exist.
+- No wheel encoders, independent-clock watchdog (WDT1/PIOSC), UART logger, hardware emergency-switch design, current monitoring, real sensor calibration report or power-stage approval exist.
 - Current MATLAB LQR is an illustrative comparison, not deployed code. Control gains are placeholders.
 - Software output gating does not substitute for power isolation and mechanical restraint.
 

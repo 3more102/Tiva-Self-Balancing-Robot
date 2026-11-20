@@ -14,12 +14,15 @@ Board: **TI EK-TM4C123GXL / TM4C123GH6PM**; driver **TB6612FNG**; sensor **MPU60
 | Tiva PC6 | TB6612 BIN1 | Right direction 1 |
 | Tiva PC7 | TB6612 BIN2 | Right direction 2 |
 | Tiva PA5 | TB6612 STBY | Driver enable, low = disabled |
+| TB6612FNG STBY bias | Internal 200 kΩ pull-down is listed in Toshiba's IC datasheet | Verify the purchased breakout preserves this bias; add an external pull-down if its circuit is unknown |
 | Tiva 3.3 V | TB6612 VCC | Driver logic voltage, check module specifications |
 | Motor battery positive | TB6612 VM | Motor supply, size/fuse for stall current |
 | Battery ground + Tiva ground + sensor ground | TB6612 GND and common GND | Required common reference |
 | TB6612 AO1/AO2 | Left motor leads | Drive winding |
 | TB6612 BO1/BO2 | Right motor leads | Drive winding |
 | Onboard Tiva SW1 / PF4 | — | Hold-to-enable, release = coast/disable |
+
+**STBY reset caveat:** Toshiba's TB6612FNG IC datasheet lists an internal 200 kΩ pull-down on STBY. Verify that the purchased driver breakout does not omit or alter this bias. The external motor-supply disconnect remains mandatory; the MCU watchdog is not a substitute.
 
 **Pin assignment caveat:** On the LaunchPad, PB6 is linked to PD0 and PB7 to PD1 via 0-ohm board resistors. Do **not** simultaneously configure PD0/PD1 as unrelated outputs while using PB6/PB7 PWM. Check your actual board revision and schematic.
 

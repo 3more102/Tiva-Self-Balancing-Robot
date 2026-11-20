@@ -36,6 +36,7 @@
 | T-07 | Physical switch/debounce and safe arming | No surprise motor activation, including reset while held | **Not tested** |
 | T-08 | Sensor unplug, transient NACK, CPU fault/brownout | Measured safe motor cutoff; independent hardware containment | **Not tested** |
 | T-09 | Motor rotation/polarity with suspended wheels, qualified supply | Each channel matches signed command, no over-current | **Not tested** |
+| T-10 | Watchdog timeout with motor supply physically disconnected; use a temporary test build that stops servicing WDT0 | MCU resets after the second unserviced timeout; STBY remains LOW through reset and reboot | **Not tested** |
 | R-01 | Restrained moderate tilt recovery | No positive feedback runaway; documented response | **Not tested** |
 | R-02 | Repeated balance runs | Actual logs/metrics linked to measured datasets | **Not tested** |
 
@@ -43,7 +44,7 @@
 
 1. Confirm mechanical restraint, physical motor-battery disconnect, fuse, safe wiring and suitable driver rating.
 2. Keep the motor driver supply isolated when first flashing and testing sensor, switch, timers and LEDs.
-3. Measure GPIO with a scope/meter **before** connecting the driver supply. Verify STBY low at startup and reset.
+3. Measure GPIO with a scope/meter **before** connecting the driver supply. Verify STBY low at startup and reset, including after a deliberate watchdog reset with the motor supply disconnected.
 4. Test motor direction individually at very low duty with wheels raised; record axis/sign truth table.
 5. Select conservative controller gains based on a measured model. Do not rely on constants shown as initial placeholders.
 6. Only proceed to restrained balancing after hardware cutoff works independently of the MCU software.

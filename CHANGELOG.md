@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 — 2026-11-20 — Watchdog fault containment
+
+- Add TM4C123 WDT0 with a nominal 100 ms timeout and reset on the second unserviced timeout.
+- Service the watchdog only after completed startup-calibration samples and control-loop iterations so a foreground stall is not continually serviced.
+- Preserve `MOTOR_OUTPUT_ALLOWED 0`; document the watchdog's system-clock limitation and a motor-power-disconnected reset acceptance test.
+- Document the TB6612FNG datasheet's internal 200 kΩ STBY pull-down and require verification of the purchased breakout.
+- No target build or physical watchdog/reset test is claimed.
+
+
 ## 0.3.0 — 2026-10-23 — Calibration, timing diagnostics and theoretical-model validation
 
 - Add portable stationary gyro bias / variance calibration with Welford accumulation and 200-sample acceptance; integrate startup timeout in Tiva MCU source.
