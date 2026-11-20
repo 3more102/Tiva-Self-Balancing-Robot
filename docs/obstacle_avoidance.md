@@ -88,9 +88,9 @@ gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
     -lm -o /tmp/test_navigation
 /tmp/test_navigation
 
-gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \\
-    -Ifirmware/tiva/include \\
-    firmware/tiva/src/range_capture.c firmware/tiva/src/range_scanner.c \\
+gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
+    -Ifirmware/tiva/include \
+    firmware/tiva/src/range_capture.c firmware/tiva/src/range_scanner.c \
     tests/test_range_scanner.c -o /tmp/test_range_scanner
 /tmp/test_range_scanner
 ```
