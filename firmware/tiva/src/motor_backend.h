@@ -49,22 +49,30 @@ static void motors_off(void)
     PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, 1U);
 }
 
-static void motor_command(float command)
+static void motor_command_differential(float balance_command,
+                                       float yaw_bias)
 {
 #if MOTOR_OUTPUT_ALLOWED
-    float left = command * (float)LEFT_MOTOR_POLARITY;
-    float right = command * (float)RIGHT_MOTOR_POLARITY;
+    float left = balance_command + yaw_bias;
+    float right = balance_command - yaw_bias;
+    float peak;
     uint8_t dir = 0U;
     uint32_t left_width, right_width;
+
     if (!isfinite(left) || !isfinite(right)) { motors_off(); return; }
+    peak = fmaxf(fabsf(left), fabsf(right));
+    /* Scale both wheels together so the requested balance/turn ratio remains. */
+    if (peak > 1.0f) {
+        left /= peak;
+        right /= peak;
+    }
+    left *= (float)LEFT_MOTOR_POLARITY;
+    right *= (float)RIGHT_MOTOR_POLARITY;
+
     if (left > 0.0f) dir |= GPIO_PIN_4;
     if (left < 0.0f) dir |= GPIO_PIN_5;
     if (right > 0.0f) dir |= GPIO_PIN_6;
     if (right < 0.0f) dir |= GPIO_PIN_7;
-    if (left > 1.0f) left = 1.0f;
-    if (left < -1.0f) left = -1.0f;
-    if (right > 1.0f) right = 1.0f;
-    if (right < -1.0f) right = -1.0f;
     left_width = (uint32_t)(fabsf(left) * (float)(g_pwm_period - 1U));
     right_width = (uint32_t)(fabsf(right) * (float)(g_pwm_period - 1U));
     if (left_width == 0U) left_width = 1U;
@@ -74,7 +82,13 @@ static void motor_command(float command)
     PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, right_width);
     GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_5, GPIO_PIN_5);
 #else
-    (void)command;
+    (void)balance_command;
+    (void)yaw_bias;
     motors_off();
 #endif
+}
+
+static void motor_command(float command)
+{
+    motor_command_differential(command, 0.0f);
 }
