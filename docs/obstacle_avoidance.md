@@ -66,7 +66,7 @@ Before selecting pins, reconcile the LaunchPad header, existing PB2/PB3 I2C pins
 
 - Add a non-blocking TivaWare range acquisition backend with timeout, edge timestamps and invalid-sample handling.
 - Decide and document the physical sensor arrangement and pin mapping.
-- Call the navigation update from the main application without delaying the 5 ms balance tick.
+- The main application now calls the navigation policy and passes its pitch/yaw requests through the controller and differential motor-mixing path; the input structure remains all-invalid/autonomy-disabled until a real sensor backend and operator enable are added.
 - Pass the requested pitch target to the balance controller's target-angle API.
 - Mix yaw bias with the balance command using the differential motor interface; calibrate both wheel polarities with wheels raised.
 - Keep MOTOR_OUTPUT_ALLOWED set to 0 until the hardware power, polarity, current and emergency-disconnect checks are complete.
