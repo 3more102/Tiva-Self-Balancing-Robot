@@ -41,6 +41,30 @@ static void calibration(void)
     assert(cal.resets == 1U);
 }
 
+
+static void yaw_axis_calibration(void)
+{
+    GyroCalibration cal;
+    gyro_cal_init(&cal);
+    assert(isnan(gyro_cal_yaw_bias_dps(&cal)));
+
+    for (uint32_t k = 0U; k < GYRO_CAL_SAMPLES; ++k) {
+        const float gx = 0.4f + ((k % 2U) ? 0.05f : -0.05f);
+        const float gz = -0.7f + ((k % 2U) ? 0.04f : -0.04f);
+        const bool ready = gyro_cal_add_axes(&cal, 0.0f, 1.0f,
+                                             gx, gz, true);
+        assert(ready == (k == GYRO_CAL_SAMPLES - 1U));
+    }
+    assert(gyro_cal_ready(&cal));
+    assert(fabsf(gyro_cal_bias_dps(&cal) - 0.4f) < 0.0001f);
+    assert(fabsf(gyro_cal_yaw_bias_dps(&cal) + 0.7f) < 0.0001f);
+
+    gyro_cal_init(&cal);
+    assert(!gyro_cal_add_axes(&cal, 0.0f, 1.0f, 0.1f, NAN, true));
+    assert(cal.valid_samples == 0U);
+    assert(cal.resets == 1U);
+}
+
 static void timing(void)
 {
     LoopTiming t;
@@ -63,6 +87,7 @@ static void timing(void)
 int main(void)
 {
     calibration();
+    yaw_axis_calibration();
     timing();
     puts("PASS: gyro bias calibration and wrap-safe timer diagnostics");
     return 0;
