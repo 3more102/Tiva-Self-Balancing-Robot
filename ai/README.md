@@ -87,6 +87,11 @@ safety shield enabled.
     gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic -Ifirmware/tiva/include firmware/tiva/src/ai_inference.c firmware/tiva/src/ai_navigation.c tests/test_ai_navigation.c -lm -o /tmp/test_ai_navigation
     /tmp/test_ai_navigation
 
-No TivaWare sensor backend or main.c integration is included yet. The current
-module is a host-tested inference and decision layer, ready for a later
-non-blocking sensor backend and main-loop integration.
+The native-C inference and decision layer is integrated in `firmware/tiva/src/main.c`
+at 50 Hz in shadow mode, after the balance command. The
+`ai_range_adapter.c` module maps the canonical `NavigationInput` contract into
+the AI frame and carries the calibrated MPU6050 yaw-Z rate. The portable
+range-acquisition coordinator is not yet wired into `main.c`, and the
+operator autonomy input remains hard-disabled; current range values are
+invalid, so the AI returns STOP and does not yet evaluate live sensor data.
+The AI output has no actuator authority.
