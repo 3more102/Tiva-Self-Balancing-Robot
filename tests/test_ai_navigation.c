@@ -9,7 +9,7 @@ static AiSensorFrame clear_frame(void)
 {
     AiSensorFrame frame;
     memset(&frame, 0, sizeof(frame));
-    frame.autonomy_enabled = true;
+    frame.inference_enabled = true;
     frame.front_valid = true;
     frame.left_valid = true;
     frame.right_valid = true;
@@ -140,12 +140,12 @@ static void test_closing_rate_feature_is_calculated(void)
     assert(fabsf(command.features[3] - 0.5f) < 0.001f);
 }
 
-static void test_disabled_autonomy_stops(void)
+static void test_disabled_inference_stops(void)
 {
     AiNavigationState state;
     AiSensorFrame frame = clear_frame();
     AiNavigationCommand command;
-    frame.autonomy_enabled = false;
+    frame.inference_enabled = false;
     ai_navigation_init(&state);
     command = ai_navigation_step(&state, &frame, 100U);
     assert(command.action == AI_ACTION_STOP);
@@ -222,7 +222,7 @@ int main(void)
     test_stale_or_missing_front_forces_stop();
     test_missing_side_cannot_authorize_turn();
     test_closing_rate_feature_is_calculated();
-    test_disabled_autonomy_stops();
+    test_disabled_inference_stops();
     test_invalid_yaw_forces_stop();
     test_safety_shield_property_under_random_inputs();
     puts("PASS: GyroGuard TinyML inference and safety-shield tests");
