@@ -11,8 +11,11 @@ bool range_acquisition_init(RangeAcquisition *acquisition,
                             uint32_t timer_hz,
                             uint32_t max_distance_mm)
 {
-    if (acquisition == NULL || hardware == NULL ||
-        hardware->timer_ticks == NULL || hardware->now_ms == NULL ||
+    if (acquisition == NULL) return false;
+    acquisition->initialized = false;
+
+    if (hardware == NULL || hardware->timer_ticks == NULL ||
+        hardware->now_ms == NULL ||
         hardware->set_echo_irq_enabled == NULL ||
         hardware->trigger_pulse == NULL) {
         return false;
