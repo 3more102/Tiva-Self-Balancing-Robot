@@ -10,6 +10,7 @@
 | Digital controller | Conditional integration under saturation and normalized command cap | `controller.c`, regression tests | No verified motor torque mapping |
 | Safe output gating | Startup DISARMED, release-to-arm requirement, 40 upright samples, angle trip, FAULT/release reset | `controller.c`, `main.c`, unit tests | SW1 debounce and input electrical fault analysis missing |
 | Firmware operator control | Motor outputs compile-time disabled; STBY LOW when disarmed | `main.c` and `motor_backend.h` | Not verified on oscilloscope or target board |
+| Stall recovery | WDT0: nominal 100 ms first timeout, reset on second unserviced timeout; serviced after complete sample | `main.c`, TI watchdog API / TM4C123 datasheet | Target reset timing and STBY behavior not tested; WDT0 shares system clock |
 | Configuration traceability | Documented axes/pins, motor polarity assumptions and default parameters | `docs/architecture.md`, wiring file | Unknown purchased part variants |
 | Analysis traceability | PID in firmware explicitly separated from illustrative LQR in MATLAB | `docs/control_theory.md`, MATLAB script | MATLAB only illustrative |
 
@@ -24,15 +25,15 @@ These changes are mostly **safety/reliability improvements**, not benchmarked CP
 1. Obtain instructor approval for using Tiva C instead of the Arduino required by the official PDF.
 2. Freeze exact part numbers and vendor datasheets for the motor, driver breakout, MPU breakout, battery, charger and regulator.
 3. Draw and independently review a full schematic; check motor stall currents against the TB6612FNG **operating** rating, not just absolute maximum/brief peak.
-4. Add hardware pull-down to STBY (per correct driver-interface design), fused motor power, accessible mechanical cutoff and secure battery mounting.
+4. Verify the TB6612FNG breakout preserves the IC's documented internal 200 kΩ STBY pull-down; add an external pull-down if the module's behavior is unknown. Keep fused motor power, an accessible mechanical cutoff and secure battery mounting.
 5. Compile the MCU target using the actual CCS/TivaWare version. Check pin mux, I²C completion sequence, expected MPU WHO_AM_I and all GPIO voltage rails.
 6. Keep wheels suspended and motor supply isolated while confirming LED/status behavior, switch logic, I²C integrity, PWM output frequency and both motor directions.
 
 ### P1 — time determinism and fault containment
 
-7. **Partially implemented:** Timer1 elapsed-period sampling and preliminary out-of-window fault (host-tested); **still required:** scope-verified absolute timing, measured worst-case execution time, jitter statistics, missed flags/counters exposed to logs and hardware watchdog.
+7. **Partially implemented:** Timer1 elapsed-period sampling and preliminary out-of-window fault (host-tested); WDT0 stall-reset code is now present. Still required: scope-verified timing, measured worst-case execution time, jitter statistics, visible missed-tick counters and a target watchdog-reset test.
 8. Add I²C transaction timeout measurements and errors per type; verify safe recovery on NACK, disconnect and stuck clock/data.
-9. Add a true independent watchdog / brownout strategy. The existing software gate cannot recover if the CPU stops executing.
+9. Add/validate a watchdog on the independent PIOSC clock (WDT1) and a brownout strategy. WDT0 currently uses the system clock; it cannot cover system-clock failure. The software gate alone cannot recover if the CPU stops executing.
 10. **Partially implemented:** stationary upright gyro bias/variance calibration with timeout (host-tested). Still add switch debounce, accelerometer calibration/offset, temperature drift study and hardware confirmation.
 11. Add sampled telemetry (timestamp, angle, gyro, command, safety state, battery/current), using DMA/ring buffers or low-priority output to avoid blocking 5 ms control loop.
 12. Set hardware-validated limits for velocity, torque/current and repeated re-arming after faults.
@@ -69,7 +70,7 @@ These changes are mostly **safety/reliability improvements**, not benchmarked CP
 
 - PWM and I²C peripheral APIs need a CCS/TivaWare compile to establish correctness.
 - The current motor code can only drive after manually changing a compile-time safety setting, and the physical polarity is unverified.
-- No current sensor, wheel encoder, physical e-stop circuit design, schematic, CAD, hardware watchdog or production release has been validated.
+- No current sensor, wheel encoder, physical e-stop circuit design, schematic, CAD, independent-clock watchdog or production release has been validated.
 - The existing MATLAB `model_and_design.m` has illustrative plant constants, not fitted robot values.
 - The official assignment requires Arduino: the microcontroller change is unresolved until instructor confirms it.
 
