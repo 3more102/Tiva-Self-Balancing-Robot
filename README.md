@@ -34,7 +34,7 @@ flowchart LR
 
 **Explore the engineering diagrams:** [Complete hardware/system diagrams](docs/architecture.md) · [Control theory and formulas](docs/control_theory.md) · [Wiring / pinout](hardware/wiring.md) · [Selection and power budget](docs/component_selection.md)
 
-**Obstacle avoidance foundation:** [Policy, state machine and hardware integration plan](docs/obstacle_avoidance.md). The navigation policy, [ultrasonic echo-capture core](docs/range_capture.md), [three-sensor round-robin scheduler](docs/range_scanner.md), scanner-to-navigation adapter and hardware-callback acquisition coordinator are host-tested; the TivaWare GPIO/timer adapter, sensor pinout and physical navigation are still pending.
+**Obstacle avoidance + AI:** [Policy and hardware integration plan](docs/obstacle_avoidance.md) · [GyroGuard TinyML architecture](docs/ai_architecture.md). The rule-based navigation policy, [ultrasonic echo-capture core](docs/range_capture.md), [three-sensor scheduler](docs/range_scanner.md), scanner-to-navigation adapter and hardware-callback acquisition coordinator are host-tested. Native-C TinyML inference is integrated at 50 Hz in shadow mode; the TivaWare sensor backend, live sensor wiring and physical navigation remain pending.
 
 ## Hardware platform and architecture
 
@@ -75,6 +75,7 @@ This is an **illustrative block diagram, not the electrical schematic** required
 - **Trip:** ≥25° pitch, sensor failure or invalid calculation -> disable the driver; fault requires release before rearming. A fatal I²C failure is latched until hardware reset.
 - **Obstacle sensing software:** portable front/left/right navigation policy, reusable ultrasonic echo-capture core and a three-sensor round-robin scheduler. Host tests cover pulse timing, timeouts, timer rollover, quiet-time enforcement, sample publication and one-active-sensor behavior; the TivaWare GPIO/timer adapter and physical pinout remain pending.
 - **WDOG0 supervision:** 50 ms system-clock first timeout and reset on the second uncleared timeout; serviced by foreground code after completed samples. Source-level only, not target-tested, and not independent of the system clock.
+- **GyroGuard TinyML:** native-C 5-12-8-5 inference with a separate software safety shield; runs at 50 Hz after the balance command in shadow mode only. The AI uses the rule-based `NavigationInput` contract and calibrated yaw-Z rate, but range acquisition is not yet connected to `main.c`, so live sensor inference is not yet demonstrated.
 - **Compile-time actuator interlock**: `MOTOR_OUTPUT_ALLOWED 0` is the default in `firmware/tiva/src/main.c`. Motor driver STBY remains LOW; code alone does **not** replace a motor-battery fuse, power switch or hardware cutoff.
 
 ```mermaid
@@ -93,7 +94,7 @@ stateDiagram-v2
 
 ## Obstacle avoidance — current software milestone
 
-The portable navigation module accepts fresh front, left and right distance samples and produces a small pitch target plus a differential yaw request. It stops on invalid/stale front data, refuses to turn unless a side has verified clearance, and requires three new clear front samples after a turn before cruising again. The `range_capture.c` engine measures ECHO pulse widths and rejects timeout/invalid results. The `range_scanner.c` scheduler selects front/left/right sequentially, enforces an inter-ping quiet interval and publishes timestamped valid/invalid samples. The `range_navigation.c` adapter maps those samples into `NavigationInput`, preserving the separate autonomy-enable gate. The `range_acquisition.c` coordinator schedules triggers and serializes scanner access through mockable hardware callbacks. These portable modules are not yet wired into `main.c` or connected to TivaWare GPIO interrupts.
+The portable navigation module accepts fresh front, left and right distance samples and produces a small pitch target plus a differential yaw request. It stops on invalid/stale front data, refuses to turn unless a side has verified clearance, and requires three new clear front samples after a turn before cruising again. The `range_capture.c` engine measures ECHO pulse widths and rejects timeout/invalid results. The `range_scanner.c` scheduler selects front/left/right sequentially, enforces an inter-ping quiet interval and publishes timestamped valid/invalid samples. The `range_navigation.c` adapter maps those samples into `NavigationInput`, preserving the separate autonomy-enable gate. The `range_acquisition.c` coordinator schedules triggers and serializes scanner access through mockable hardware callbacks. These portable modules are host-tested but not yet wired into `main.c` or connected to a TivaWare hardware capture backend. Native-C AI inference now runs at 50 Hz in shadow mode after the balance command, using `ai_range_adapter.c` to consume `NavigationInput` and calibrated yaw-Z rate. The range inputs are still invalid and autonomy remains hard-disabled, so the AI returns STOP and has not yet evaluated live sensor data.
 
 - Policy source: **firmware/tiva/src/navigation.c**
 - Public interface: **firmware/tiva/include/navigation.h**
