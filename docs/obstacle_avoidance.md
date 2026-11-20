@@ -1,6 +1,6 @@
 # Obstacle avoidance — software foundation
 
-**Status:** portable navigation policy and host tests are implemented. The TivaWare range-sensor acquisition, physical sensor wiring, main-loop integration and floor tests are not implemented or verified. Motor output remains disabled by default.
+**Status:** portable navigation policy and host tests are implemented. main.c calls the policy and routes its pitch/yaw requests through the controller/motor-mixing path, but autonomy is disabled and range inputs are invalid placeholders. The TivaWare range-sensor acquisition, physical sensor wiring, operator enable and floor tests are not implemented or verified. Motor output remains disabled by default.
 
 ## 1. Intended architecture
 
