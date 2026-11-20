@@ -6,7 +6,7 @@
 
 The balance controller remains the inner, highest-priority loop. Obstacle avoidance is an outer motion-request layer:
 
-\`\`\`mermaid
+```mermaid
 flowchart TD
     FRONT["Front range sample"] --> FRESH["Validity + freshness checks"]
     LEFT["Left range sample"] --> FRESH
@@ -21,7 +21,7 @@ flowchart TD
     MIX --> DRIVER["TB6612FNG"]
     DRIVER --> WHEELS["Two drive wheels"]
     WHEELS -. "body pitch" .-> IMU
-\`\`\`
+```
 
 Navigation must never delay, block or replace the balance update. If the front range is invalid or stale, navigation requests zero travel. If neither side has verified clearance, it holds rather than guessing.
 
@@ -78,12 +78,12 @@ There are no wheel encoders or closed-loop velocity estimates in the current des
 
 Run from the repository root:
 
-\`\`\`bash
-gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \\
-    -Ifirmware/tiva/include \\
-    firmware/tiva/src/navigation.c tests/test_navigation.c \\
+```bash
+gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
+    -Ifirmware/tiva/include \
+    firmware/tiva/src/navigation.c tests/test_navigation.c \
     -lm -o /tmp/test_navigation
 /tmp/test_navigation
-\`\`\`
+```
 
 The tests cover autonomy disable, invalid/stale front data, three-sample clear confirmation, turn-side selection, timed turn completion, post-turn re-verification and holding when neither side is clear. These host tests do not verify TivaWare peripherals, sensor wiring, physical stopping distance or real obstacle avoidance.
