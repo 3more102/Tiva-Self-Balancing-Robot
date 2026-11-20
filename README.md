@@ -99,7 +99,7 @@ The new portable navigation module accepts fresh front, left and right distance 
 - Host tests: **tests/test_navigation.c**
 - Design and hardware integration plan: **docs/obstacle_avoidance.md**
 
-The balance controller now has a target-angle API, and the motor backend has differential wheel mixing. The main Tiva application is **not yet wired to the navigation module** because the range-sensor acquisition backend and physical sensor pinout are still outstanding. No physical obstacle avoidance is claimed. With no wheel encoders, the initial lean and timed-turn commands are open-loop.
+The balance controller now has a target-angle API, and the motor backend has differential wheel mixing. The main Tiva application calls the navigation policy, but autonomy remains disabled and the range inputs remain invalid until the range-sensor acquisition backend, physical sensor pinout and operator enable are implemented. No physical obstacle avoidance is claimed. With no wheel encoders, the initial lean and timed-turn commands are open-loop.
 
 ## Getting started
 
@@ -220,7 +220,7 @@ Tiva-Self-Balancing-Robot/
 
 **Implemented in source:** portable C pitch estimator, guarded PD/PID, target-angle controller API, safety state machine, gyro calibration, Timer1 elapsed-period guard, portable obstacle policy, differential motor mixer, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
 **Host verification:** obstacle policy tests and a target-angle controller test were run locally; the complete host suite is also wired into GitHub Actions.  
-**Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, range-sensor acquisition, main-loop navigation integration, actual stationary IMU calibration, sampling timing, assembled robot, physical protection, measured telemetry, real balancing or physical obstacle avoidance.
+**Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, range-sensor acquisition, range-sensor hardware integration, actual stationary IMU calibration, sampling timing, assembled robot, physical protection, measured telemetry, real balancing or physical obstacle avoidance.
 
 ## References
 
