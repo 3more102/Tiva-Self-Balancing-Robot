@@ -22,7 +22,7 @@ typedef enum {
 } AiAction;
 
 typedef struct {
-    bool autonomy_enabled;
+    bool inference_enabled; /* Shadow evaluation gate; not actuator authority. */
     bool front_valid;
     bool left_valid;
     bool right_valid;
