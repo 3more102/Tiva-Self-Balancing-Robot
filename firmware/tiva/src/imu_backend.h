@@ -43,14 +43,17 @@ static int16_t i16_be(const uint8_t *bytes)
 }
 
 /* +X axis parallel to axle, +Y forward and +Z up when robot upright. */
-static bool mpu_sample(float *ay_g, float *az_g, float *gx_dps)
+static bool mpu_sample(float *ay_g, float *az_g, float *gx_dps,
+                      float *gz_dps)
 {
     uint8_t bytes[14];
     if (!mpu_read(MPU6050_ACCEL_XOUT_H, bytes, 14U)) return false;
     *ay_g = (float)i16_be(&bytes[2]) / 16384.0f;
     *az_g = (float)i16_be(&bytes[4]) / 16384.0f;
     *gx_dps = (float)i16_be(&bytes[8]) / 131.0f;
-    return isfinite(*ay_g) && isfinite(*az_g) && isfinite(*gx_dps);
+    *gz_dps = (float)i16_be(&bytes[12]) / 131.0f;
+    return isfinite(*ay_g) && isfinite(*az_g) &&
+           isfinite(*gx_dps) && isfinite(*gz_dps);
 }
 
 static bool imu_init(void)
