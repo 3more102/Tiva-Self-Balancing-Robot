@@ -46,6 +46,10 @@ uses fixed-size stack arrays and no dynamic allocation. Softmax uses a
 max-subtracted exponent to avoid overflow. The model is exported as a C header;
 the MCU does not need NumPy or a machine-learning runtime.
 
+## Range sensor acquisition contract
+
+A portable asynchronous range layer now schedules front/left/right echo captures, enforces a 60 ms inter-ping gap, rejects invalid pulse widths, expires missing echoes, and reports timestamped readings. The AI sensor adapter maps those readings into the model's input frame while preserving validity and sample timestamps. The layer deliberately contains no Tiva GPIO pin mapping or sensor-specific trigger pulse: a target adapter cannot be completed safely until the actual ultrasonic module and wiring are confirmed. See [range-sensing architecture and tests](range_sensing.md).
+
 ## Safety shield
 
 - Front data must be valid, nonzero, and no older than 250 ms.
