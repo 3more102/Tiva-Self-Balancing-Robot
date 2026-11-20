@@ -71,7 +71,7 @@ This is an **illustrative block diagram, not the electrical schematic** required
 - **Release-to-arm** logic: observe switch release; require 40 consecutive upright sample checks (≤8°) with switch held, then allow the software command gate.
 - **Trip:** ≥25° pitch, sensor failure or invalid calculation -> disable the driver; fault requires release before rearming. A fatal I²C failure is latched until hardware reset.
 - **MCU watchdog:** WDT0 supervises control-loop progress. Its first timeout is nominally 50 ms; if the first-timeout flag is not cleared, the second timeout resets the MCU (nominally about 100 ms). This is source-level implementation, not target-verified.
-- **Compile-time actuator interlock**: `MOTOR_OUTPUT_ALLOWED 0` is the default in `firmware/tiva/src/main.c`. Motor driver STBY remains LOW; code alone does **not** replace a motor-battery fuse, power switch or hardware cutoff.
+- **Compile-time actuator interlock**: `MOTOR_OUTPUT_ALLOWED 0` is the default in `firmware/tiva/src/main.c`. Motor driver STBY is held LOW in software; fit and verify an external STBY pull-down so it remains LOW while PA5 is high-impedance during reset. Code alone does **not** replace a motor-battery fuse, power switch or hardware cutoff.
 
 ```mermaid
 stateDiagram-v2
