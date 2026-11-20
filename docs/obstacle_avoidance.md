@@ -1,6 +1,6 @@
 # Obstacle avoidance — software foundation
 
-**Status:** portable navigation policy, ultrasonic echo-capture core, three-sensor round-robin scheduler and host tests are implemented. main.c calls the navigation policy and routes its pitch/yaw requests through the controller/motor-mixing path, but autonomy is disabled and range inputs are invalid placeholders. The TivaWare GPIO/timer adapter, physical sensor wiring, operator enable and floor tests are not implemented or verified. Motor output remains disabled by default.
+**Status:** portable navigation policy, ultrasonic echo-capture core, three-sensor round-robin scheduler, scanner-to-navigation adapter and host tests are implemented. main.c calls the navigation policy and routes its pitch/yaw requests through the controller/motor-mixing path, but autonomy is disabled and range inputs are invalid placeholders. The TivaWare GPIO/timer adapter, physical sensor wiring, operator enable and floor tests are not implemented or verified. Motor output remains disabled by default.
 
 ## 1. Intended architecture
 
@@ -58,7 +58,7 @@ Positive yaw bias is defined as a left-wheel command greater than the right-whee
 
 ## 3. Sensor hardware plan
 
-The repository includes a portable echo-capture engine (`range_capture.c`) and a three-sensor round-robin scheduler (`range_scanner.c`). The scheduler permits one active ping at a time, enforces a configurable quiet interval, publishes valid/invalid distance samples with timestamps and rejects out-of-range results. It does not configure TivaWare GPIO/timer peripherals, generate physical TRIG pulses or assign pins. The policy expects front, left and right readings.
+The repository includes a portable echo-capture engine (`range_capture.c`), a three-sensor round-robin scheduler (`range_scanner.c`) and a mapping adapter (`range_navigation.c`) that builds the navigation policy's `NavigationInput` from the latest sensor samples. The scheduler permits one active ping at a time, enforces a configurable quiet interval, publishes valid/invalid distance samples with timestamps and rejects out-of-range results. These portable modules do not configure TivaWare GPIO/timer peripherals, generate physical TRIG pulses or assign pins. The policy expects front, left and right readings.
 
 For the first hardware integration, three fixed range sensors are the simplest software match. Trigger them sequentially, not simultaneously, and allow sufficient quiet time between pings to reduce acoustic cross-talk. A single sensor on a servo is another option, but its scan schedule must still meet the front/side freshness limits and must not block the balance loop.
 
@@ -69,6 +69,7 @@ Before selecting pins, reconcile the LaunchPad header, existing PB2/PB3 I2C pins
 - [x] Call the navigation policy from `main.c` and route pitch/yaw requests through the target-angle controller and differential motor mixer.
 - [x] Add a portable, host-tested echo-capture engine that supports independent sensor instances and timer-tick timestamps.
 - [x] Add a portable, host-tested three-sensor round-robin scheduler with quiet-time enforcement, timeout publication and timestamped range samples.
+- [x] Add a host-tested adapter that maps scanner samples into `NavigationInput` while preserving the separate autonomy-enable gate.
 - Add the non-blocking TivaWare GPIO/timer adapter and physical TRIG/ECHO pin mapping.
 - Decide and document the physical sensor arrangement and pin mapping; keep the operator autonomy enable separate from the balance-enable switch.
 - Calibrate both wheel polarities with wheels raised before any motor-output qualification.
@@ -95,4 +96,4 @@ gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
 /tmp/test_range_scanner
 ```
 
-The navigation tests cover autonomy disable, invalid/stale front data, out-of-range timeout sentinels, three-sample clear confirmation, turn-side selection, timed turn completion, post-turn re-verification, holding when neither side is clear, uint32 timestamp rollover, stale side-sample rejection and opposite-side retry rules. The range-capture tests cover valid/invalid pulse widths, missing and stuck echoes, late edges, timer rollover and distance conversion. The range-scanner tests cover round-robin order, one-active-sensor enforcement, wrong-sensor edge rejection, timeout/invalid publication, range bounds and timer rollover. These host tests do not verify TivaWare peripherals, sensor wiring, physical stopping distance or real obstacle avoidance.
+The navigation tests cover autonomy disable, invalid/stale front data, out-of-range timeout sentinels, three-sample clear confirmation, turn-side selection, timed turn completion, post-turn re-verification, holding when neither side is clear, uint32 timestamp rollover, stale side-sample rejection and opposite-side retry rules. The range-capture tests cover valid/invalid pulse widths, missing and stuck echoes, late edges, timer rollover and distance conversion. The range-scanner tests cover round-robin order, one-active-sensor enforcement, wrong-sensor edge rejection, timeout/invalid publication, range bounds and timer rollover. The range-to-navigation adapter tests verify sample mapping, missing/timeout invalidation and independent autonomy gating. These host tests do not verify TivaWare peripherals, sensor wiring, physical stopping distance or real obstacle avoidance.
