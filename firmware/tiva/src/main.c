@@ -18,6 +18,7 @@
 #include "controller.h"
 #include "diagnostics.h"
 #include "navigation.h"
+#include "navigation.h"
 
 #define MOTOR_OUTPUT_ALLOWED 0  /* MUST remain disabled before hardware qualification. */
 #define MOTOR_POLARITY (-1.0f)
@@ -80,6 +81,11 @@ int main(void)
     TiltEstimator estimator;
     BalanceController controller;
     Navigation navigation;
+    NavigationInput navigation_input = {0};
+    NavigationCommand navigation_command;
+    uint32_t navigation_now_ms = 0U;
+    float navigation_ms_remainder = 0.0f;
+    Navigation navigation;
     NavigationInput navigation_input = {0}; /* Range backend not wired yet. */
     NavigationCommand navigation_command;
     uint32_t navigation_time_ms = 0U;
@@ -113,6 +119,9 @@ int main(void)
                      TimerValueGet(TIMER1_BASE, TIMER_A));
     balance_controller_init(&controller, 0.016f, 0.0f, 0.0009f);
     navigation_init(&navigation);
+    /* Keep autonomy disabled until range acquisition and an operator enable exist. */
+    navigation_input.autonomy_enabled = false;
+    navigation_init(&navigation);
     /* Autonomy stays disabled until the non-blocking range backend and
        a separate operator enable input are implemented and verified. */
 
@@ -140,6 +149,15 @@ int main(void)
             continue;
         }
         angle = tilt_estimator_update(&estimator, ay, az, gx, dt_s);
+        /* Build a wrap-safe millisecond clock from the measured control dt. */
+        navigation_ms_remainder += dt_s * 1000.0f;
+        if (navigation_ms_remainder >= 1.0f) {
+            const uint32_t elapsed_ms = (uint32_t)navigation_ms_remainder;
+            navigation_now_ms += elapsed_ms;
+            navigation_ms_remainder -= (float)elapsed_ms;
+        }
+        navigation_command = navigation_update(&navigation, &navigation_input,
+                                               navigation_now_ms);
         if (!balance_safety_update(&safety, angle, pressed, imu_ok)) {
             balance_controller_reset(&controller);
             motors_off();
@@ -159,7 +177,10 @@ int main(void)
             continue;
         }
         if (navigation_command.yaw_bias == 0.0f) {
-            motor_command(MOTOR_POLARITY * output);
+            motor_command_differential(
+            MOTOR_POLARITY * output,
+            navigation_command.travel_permitted ?
+                navigation_command.yaw_bias : 0.0f);
         } else {
             motor_command_differential(MOTOR_POLARITY * output,
                                        navigation_command.yaw_bias);
