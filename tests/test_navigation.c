@@ -180,6 +180,30 @@ static void test_no_verified_side_means_no_turn(void)
     assert(command.yaw_bias == 0.0f);
 }
 
+static void test_stale_side_ranges_cannot_authorize_turn(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+    uint32_t now = 10U;
+    navigation_init(&nav);
+    (void)feed_clearance(&nav, &input, &now);
+
+    input.front_mm = 200U;
+    input.front_sample_ms = 200U;
+    input.left_mm = 1200U;
+    input.right_mm = 1000U;
+    input.left_sample_ms = 0U;
+    input.right_sample_ms = 0U;
+    (void)navigation_update(&nav, &input, 200U);
+
+    input.front_sample_ms = 1000U;
+    command = navigation_update(&nav, &input, 1000U);
+    assert(command.mode == NAV_HOLD);
+    assert(!command.travel_permitted);
+    assert(command.yaw_bias == 0.0f);
+}
+
 static void test_autonomy_disable_cancels_motion(void)
 {
     Navigation nav;
@@ -202,6 +226,7 @@ int main(void)
     test_stale_front_stops_cruise();
     test_obstacle_turns_toward_more_clear_side_then_reverify();
     test_no_verified_side_means_no_turn();
+    test_stale_side_ranges_cannot_authorize_turn();
     test_autonomy_disable_cancels_motion();
     puts("PASS: obstacle navigation fail-safe, freshness, turn and re-verification tests");
     return 0;
