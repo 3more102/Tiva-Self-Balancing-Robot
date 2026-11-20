@@ -27,14 +27,18 @@ the balance PID and it never writes motor GPIO/PWM directly.
                   |
                 Wheels
 
-The 200 Hz balance loop must remain highest priority. Sensor acquisition and
-inference must be bounded and non-blocking when integrated into the MCU loop.
-The MPU6050 backend now reads vertical gyro Z during startup calibration, and
-the calibration logic estimates both pitch X and yaw Z bias. The corrected
-runtime yaw rate is exposed as g_yaw_rate_dps for CCS Watch verification, but
-is not yet routed into AI navigation. The present repository
-adds the portable C inference/decision and range-capture modules, but does not
-yet connect real range sensors or the motor mixer to main.c.
+The 200 Hz balance loop remains highest priority. The MPU6050 backend reads
+gyro X for pitch and vertical-axis gyro Z for yaw; startup calibration
+estimates both offsets, and the corrected runtime yaw rate is passed to the
+AI sensor frame. The main loop services the range scheduler without a busy
+wait and runs inference at 50 Hz in **shadow mode**.
+
+An optional TivaWare HC-SR04-compatible adapter exists, but is disabled by
+default until the actual module and voltage levels are confirmed. With the
+default setting, all range readings are invalid and the AI safety shield
+returns STOP. The AI action is exposed to CCS watch variables only: it does
+not change the balance target, motor mixing or PWM. No physical navigation
+performance is claimed.
 
 ## Network specification
 
@@ -52,7 +56,14 @@ the MCU does not need NumPy or a machine-learning runtime.
 
 ## Range sensor acquisition contract
 
-A portable asynchronous range layer now schedules front/left/right echo captures, enforces a 60 ms inter-ping gap, rejects invalid pulse widths, expires missing echoes, and reports timestamped readings. The AI sensor adapter maps those readings into the model's input frame while preserving validity and sample timestamps. The layer deliberately contains no Tiva GPIO pin mapping or sensor-specific trigger pulse: a target adapter cannot be completed safely until the actual ultrasonic module and wiring are confirmed. See [range-sensing architecture and tests](range_sensing.md).
+A portable asynchronous range layer schedules front/left/right echo
+captures, enforces a 60 ms inter-ping gap, rejects invalid pulse widths,
+expires missing echoes, and reports timestamped readings. The AI sensor
+adapter maps those readings and calibrated yaw rate into the model's input
+frame. An optional Tiva adapter uses PE0–PE5, Timer2A and Port E edge
+interrupts for HC-SR04-compatible modules, but
+`RANGE_HCSR04_BACKEND_ENABLED` defaults to `0`. Confirm the sensor model and
+Echo voltage before enabling it. See [range-sensing architecture and tests](range_sensing.md).
 
 ## Safety shield
 
