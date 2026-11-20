@@ -138,7 +138,7 @@ GitHub Actions also runs these **host-side** checks after pushes and pull reques
 
 1. Install TI [Code Composer Studio](https://www.ti.com/tool/CCSTUDIO) and [EK-TM4C123GXL board resources / TivaWare](https://www.ti.com/tool/EK-TM4C123GXL).
 2. Start from a **working TivaWare example** for the exact `TM4C123GH6PM` target to obtain the correct startup file, linker configuration, compiler options and driverlib link library.
-3. Add `firmware/tiva/src/main.c`, `controller.c`, `diagnostics.c` and `navigation.c`, include `firmware/tiva/include`, and configure TI TivaWare library/include paths. The navigation module is portable C; the Tiva range-sensor backend and main-loop connection are still pending.
+3. Add `firmware/tiva/src/main.c`, `controller.c`, `diagnostics.c` and `navigation.c`, include `firmware/tiva/include`, and configure TI TivaWare library/include paths. The navigation module is portable C and is called by main.c with autonomy disabled; the Tiva range-sensor backend, sensor pinout and operator enable are still pending.
 4. Build and test with **motors unpowered**, confirming sensor reads, GPIO voltage, clock, real timing and pin multiplexing.
 5. Do **not** enable `MOTOR_OUTPUT_ALLOWED` until the independent physical wiring/current/polarity review is completed.
 
@@ -220,7 +220,7 @@ Tiva-Self-Balancing-Robot/
 
 **Implemented in source:** portable C pitch estimator, guarded PD/PID, target-angle controller API, safety state machine, gyro calibration, Timer1 elapsed-period guard, portable obstacle policy, differential motor mixer, theoretical RK4 simulator, Tiva peripheral draft, documentation and tests.  
 **Host verification:** obstacle policy tests and a target-angle controller test were run locally; the complete host suite is also wired into GitHub Actions.  
-**Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, range-sensor acquisition, range-sensor hardware integration, actual stationary IMU calibration, sampling timing, assembled robot, physical protection, measured telemetry, real balancing or physical obstacle avoidance.
+**Not verified:** CCS/TivaWare compilation, board wiring or motor behavior, Tiva range-sensor acquisition and pinout, actual stationary IMU calibration, sampling timing, assembled robot, physical protection, measured telemetry, real balancing or physical obstacle avoidance.
 
 ## References
 
