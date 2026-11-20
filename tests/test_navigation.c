@@ -453,6 +453,8 @@ int main(void)
     test_stale_side_samples_cannot_authorize_turn();
     test_stale_front_sample_aborts_timed_turn();
     test_stale_selected_side_aborts_turn();
+    test_turn_stops_early_when_front_clears();
+    test_out_of_order_front_timestamps_do_not_confirm_clearance();
     puts("PASS: obstacle navigation fail-safe, freshness, turn and re-verification tests");
     return 0;
 }
