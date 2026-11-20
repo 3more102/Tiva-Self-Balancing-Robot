@@ -149,8 +149,20 @@ NavigationCommand navigation_update(Navigation *navigation,
         return command_for(navigation, cruise_lean(input->front_mm), 0.0f);
 
     case NAV_TURN_LEFT:
+        if (!front_fresh || !left_fresh ||
+            input->left_mm < NAV_SIDE_CLEAR_MM ||
+            (uint32_t)(now_ms - navigation->state_since_ms) >=
+                NAV_TURN_DURATION_MS) {
+            navigation->mode = NAV_HOLD;
+            navigation->state_since_ms = now_ms;
+            navigation->clear_samples = 0U;
+            return stopped(navigation);
+        }
+        return turning(navigation);
+
     case NAV_TURN_RIGHT:
-        if (!front_fresh ||
+        if (!front_fresh || !right_fresh ||
+            input->right_mm < NAV_SIDE_CLEAR_MM ||
             (uint32_t)(now_ms - navigation->state_since_ms) >=
                 NAV_TURN_DURATION_MS) {
             navigation->mode = NAV_HOLD;
