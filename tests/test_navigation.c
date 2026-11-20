@@ -334,6 +334,80 @@ static void test_stale_selected_side_aborts_turn(void)
     assert(command.pitch_target_deg == 0.0f && command.yaw_bias == 0.0f);
 }
 
+static void test_turn_stops_early_when_front_clears(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+    uint32_t now = 10U;
+
+    navigation_init(&nav);
+    (void)feed_clearance(&nav, &input, &now);
+    input.front_mm = 200U;
+    input.front_sample_ms = 200U;
+    input.left_mm = 700U;
+    input.right_mm = 1100U;
+    input.left_sample_ms = 200U;
+    input.right_sample_ms = 200U;
+    (void)navigation_update(&nav, &input, 200U);
+
+    input.front_sample_ms = 320U;
+    input.left_sample_ms = 320U;
+    input.right_sample_ms = 320U;
+    command = navigation_update(&nav, &input, 320U);
+    assert(command.mode == NAV_TURN_RIGHT && command.travel_permitted);
+
+    /* Stop the open-loop turn as soon as a fresh front reading is clear. */
+    input.front_mm = 600U;
+    input.front_sample_ms = 400U;
+    input.left_sample_ms = 400U;
+    input.right_sample_ms = 400U;
+    command = navigation_update(&nav, &input, 400U);
+    assert(command.mode == NAV_HOLD && !command.travel_permitted);
+    assert(command.yaw_bias == 0.0f);
+
+    input.front_sample_ms = 460U;
+    input.left_sample_ms = 460U;
+    input.right_sample_ms = 460U;
+    command = navigation_update(&nav, &input, 460U);
+    assert(command.mode == NAV_HOLD);
+    input.front_sample_ms = 520U;
+    input.left_sample_ms = 520U;
+    input.right_sample_ms = 520U;
+    command = navigation_update(&nav, &input, 520U);
+    assert(command.mode == NAV_HOLD);
+    input.front_sample_ms = 580U;
+    input.left_sample_ms = 580U;
+    input.right_sample_ms = 580U;
+    command = navigation_update(&nav, &input, 580U);
+    assert(command.mode == NAV_CRUISE && command.travel_permitted);
+}
+
+static void test_out_of_order_front_timestamps_do_not_confirm_clearance(void)
+{
+    Navigation nav;
+    NavigationInput input = sample_input();
+    NavigationCommand command;
+    navigation_init(&nav);
+
+    input.front_sample_ms = 100U;
+    command = navigation_update(&nav, &input, 100U);
+    assert(command.mode == NAV_HOLD);
+
+    /* This timestamp is older than the last accepted sample. */
+    input.front_sample_ms = 90U;
+    command = navigation_update(&nav, &input, 110U);
+    assert(command.mode == NAV_HOLD);
+
+    input.front_sample_ms = 120U;
+    command = navigation_update(&nav, &input, 120U);
+    assert(command.mode == NAV_HOLD);
+
+    input.front_sample_ms = 180U;
+    command = navigation_update(&nav, &input, 180U);
+    assert(command.mode == NAV_CRUISE && command.travel_permitted);
+}
+
 static void test_out_of_range_readings_cannot_authorize_motion(void)
 {
     Navigation nav;
