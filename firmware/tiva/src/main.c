@@ -166,7 +166,7 @@ int main(void)
     navigation_input.autonomy_enabled = false;
 
     for (;;) {
-        bool pressed;
+        bool pressed, balance_armed;
         float angle, output, pitch_target_deg;
 
         await_tick();
@@ -201,7 +201,8 @@ int main(void)
         yaw_rate_dps = gz - gyro_cal_yaw_bias_dps(&gyro_cal);
         g_yaw_rate_debug_dps = yaw_rate_dps;
         angle = tilt_estimator_update(&estimator, ay, az, gx, dt_s);
-        if (!balance_safety_update(&safety, angle, pressed, imu_ok)) {
+        balance_armed = balance_safety_update(&safety, angle, pressed, imu_ok);
+        if (!balance_armed) {
             balance_controller_reset(&controller);
             navigation_init(&navigation);
             ai_navigation_init(&ai_state);
@@ -250,7 +251,7 @@ int main(void)
         if (++ai_divider >= 4U) {
             ai_divider = 0U;
             if (ai_sensor_frame_from_navigation(&ai_frame, &navigation_input,
-                                                yaw_rate_dps)) {
+                                                balance_armed, yaw_rate_dps)) {
                 ai_command = ai_navigation_step(&ai_state, &ai_frame,
                                                 navigation_now_ms);
                 g_ai_action_debug = (uint32_t)ai_command.action;
