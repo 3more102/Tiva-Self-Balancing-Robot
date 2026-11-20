@@ -1,6 +1,6 @@
 # Portable ultrasonic range-capture engine
 
-**Status:** host-tested portable C module. It is not yet connected to Tiva C GPIO pins or the physical sensors.
+**Status:** host-tested portable C module. The three-sensor scheduler that uses this capture engine is documented in [range_scanner.md](range_scanner.md). Neither module is yet connected to Tiva C GPIO pins or physical sensors.
 
 ## Purpose
 

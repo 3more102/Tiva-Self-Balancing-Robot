@@ -67,6 +67,21 @@ jobs:
             firmware/tiva/src/range_capture.c tests/test_range_capture.c \
             -o /tmp/test_range_capture_ubsan
           /tmp/test_range_capture_ubsan
+      - name: Compile and run three-sensor range scanner tests
+        run: |
+          gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
+            -Ifirmware/tiva/include \
+            firmware/tiva/src/range_capture.c firmware/tiva/src/range_scanner.c \
+            tests/test_range_scanner.c -o /tmp/test_range_scanner
+          /tmp/test_range_scanner
+      - name: Run three-sensor range scanner tests with undefined-behavior sanitizer
+        run: |
+          gcc -std=c11 -O1 -g -Wall -Wextra -Werror -pedantic \
+            -fsanitize=undefined -fno-sanitize-recover=all \
+            -Ifirmware/tiva/include \
+            firmware/tiva/src/range_capture.c firmware/tiva/src/range_scanner.c \
+            tests/test_range_scanner.c -o /tmp/test_range_scanner_ubsan
+          /tmp/test_range_scanner_ubsan
       - name: Test theoretical pitch-only simulation
         run: python3 -m unittest discover -s tests -p "test_simulation.py" -v
       - name: Generate deterministic theoretical simulation outputs
