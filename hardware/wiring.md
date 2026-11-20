@@ -21,9 +21,21 @@ Board: **TI EK-TM4C123GXL / TM4C123GH6PM**; driver **TB6612FNG**; sensor **MPU60
 | TB6612 BO1/BO2 | Right motor leads | Drive winding |
 | Onboard Tiva SW1 / PF4 | — | Hold-to-enable, release = coast/disable |
 
-## Optional obstacle-range sensors — wiring not assigned
+## Optional obstacle-range sensors — provisional HC-SR04-compatible map
 
-The portable firmware now expects three timestamped range readings (front, left and right), but **no ultrasonic sensor model or pin assignment has been approved**. Do not connect trigger/echo wires based on a guessed pin map. First identify the exact module and its supply/logic-level specifications, then select unused Tiva pins and a hardware timer/GPIO interrupt route. A 5 V echo signal must not be applied directly to a TM4C123 GPIO unless the sensor documentation confirms a safe 3.3 V output; otherwise provide proper level translation. The capture core and timing assumptions are documented in [range_sensing.md](../docs/range_sensing.md).
+An optional Tiva adapter is present for three HC-SR04-compatible trigger/echo modules, but it is **disabled by default** with `RANGE_HCSR04_BACKEND_ENABLED 0`. The actual sensor model has not been confirmed; do not enable or wire this map until its datasheet and electrical levels are checked.
+
+| Sensor | Tiva TRIG | Tiva ECHO | Role |
+|---|---|---|---|
+| Front | PE0 | PE1 | Forward obstacle |
+| Left | PE2 | PE3 | Left-side clearance |
+| Right | PE4 | PE5 | Right-side clearance |
+
+The optional adapter uses Timer2A to end a 10 µs trigger pulse and Port E GPIO interrupts to timestamp both Echo edges. Timer1A provides raw 80 MHz timestamps. The EK-TM4C123GXL manual shows PE0–PE5 on the LaunchPad expansion headers ([TI board manual](https://www.ti.com/lit/ug/spmu296/spmu296.pdf)).
+
+**Voltage warning:** many HC-SR04-style modules use 5 V power and may output 5 V on Echo. Never connect a 5 V Echo signal directly to a TM4C123 GPIO. Use a verified level shifter or resistor divider unless the exact module guarantees a 3.3 V-safe Echo output. Confirm the module accepts the Tiva's 3.3 V Trigger level. Keep the backend disabled until this is verified.
+
+The portable capture core and timing assumptions are documented in [range_sensing.md](../docs/range_sensing.md).
 
 **Pin assignment caveat:** On the LaunchPad, PB6 is linked to PD0 and PB7 to PD1 via 0-ohm board resistors. Do **not** simultaneously configure PD0/PD1 as unrelated outputs while using PB6/PB7 PWM. Check your actual board revision and schematic.
 
