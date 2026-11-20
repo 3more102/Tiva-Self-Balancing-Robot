@@ -99,6 +99,23 @@ jobs:
             firmware/tiva/src/range_scanner.c firmware/tiva/src/range_navigation.c \
             tests/test_range_navigation.c -lm -o /tmp/test_range_navigation_ubsan
           /tmp/test_range_navigation_ubsan
+      - name: Compile and run range acquisition coordinator tests
+        run: |
+          gcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic \
+            -Ifirmware/tiva/include \
+            firmware/tiva/src/range_capture.c firmware/tiva/src/range_scanner.c \
+            firmware/tiva/src/range_navigation.c firmware/tiva/src/range_acquisition.c \
+            tests/test_range_acquisition.c -o /tmp/test_range_acquisition
+          /tmp/test_range_acquisition
+      - name: Run range acquisition coordinator tests with undefined-behavior sanitizer
+        run: |
+          gcc -std=c11 -O1 -g -Wall -Wextra -Werror -pedantic \
+            -fsanitize=undefined -fno-sanitize-recover=all \
+            -Ifirmware/tiva/include \
+            firmware/tiva/src/range_capture.c firmware/tiva/src/range_scanner.c \
+            firmware/tiva/src/range_navigation.c firmware/tiva/src/range_acquisition.c \
+            tests/test_range_acquisition.c -o /tmp/test_range_acquisition_ubsan
+          /tmp/test_range_acquisition_ubsan
       - name: Test theoretical pitch-only simulation
         run: python3 -m unittest discover -s tests -p "test_simulation.py" -v
       - name: Generate deterministic theoretical simulation outputs
